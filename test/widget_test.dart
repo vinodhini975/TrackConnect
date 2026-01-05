@@ -12,11 +12,10 @@ void main() {
   ),
 );
 
+    // Check for home page text
+    expect(find.text('Home Page'), findsOneWidget);
 
-    // ✅ Check for welcome text
-    expect(find.text('Welcome to Waste Tracker! 🌍'), findsOneWidget);
-
-    // ✅ Check for the button
-    expect(find.text('Allow Location Access'), findsOneWidget);
+    // Check for the button
+    expect(find.text('Open Map'), findsOneWidget);
   });
 }

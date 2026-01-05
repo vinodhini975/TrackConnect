@@ -1,0 +1,1 @@
+This is a placeholder file for the assets directory. The actual truck marker image would go in the assets/ folder.

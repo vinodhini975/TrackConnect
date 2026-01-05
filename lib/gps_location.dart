@@ -3,6 +3,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:async'; // Add timer import
+import 'platform_service.dart';
 
 class GPSLocation extends StatefulWidget {
   @override
@@ -14,6 +15,7 @@ class _GPSLocationState extends State<GPSLocation> {
   LatLng? _currentLocation;
   double _geofenceRadius = 10.0; // 10 meters
   late FlutterLocalNotificationsPlugin _notificationsPlugin;
+  Timer? _locationUpdateTimer; // Store reference to timer to cancel when needed
 
   Set<Polyline> _polylines = {}; // Stores the polyline
   final LatLng wasteTruckLocation = LatLng(13.961046, 75.511070); // Truck location
@@ -25,14 +27,20 @@ class _GPSLocationState extends State<GPSLocation> {
     _getUserLocation();
 
     // Set up a periodic location update
-    const oneSec = const Duration(seconds: 10);
-    Timer.periodic(oneSec, (Timer timer) {
+    const oneSec = Duration(seconds: 10);
+    _locationUpdateTimer = Timer.periodic(oneSec, (Timer timer) {
       if (mounted) {
         _getUserLocation();
       } else {
         timer.cancel();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _locationUpdateTimer?.cancel(); // Cancel the timer when widget is disposed
+    super.dispose();
   }
 
   /// Initialize Local Notifications
