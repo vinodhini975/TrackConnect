@@ -7,10 +7,11 @@ plugins {
 
 android {
     namespace = "com.example.waste_tracker"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -24,12 +25,10 @@ android {
         applicationId = "com.example.waste_tracker"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk =   23
-        targetSdk = 35
+        minSdk = flutter.minSdkVersion
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        manifestPlaceholders["AIzaSyBfKoVGznhqI1rnLLs08EAlAklDtG1-7ak"] = project.properties["AIzaSyBfKoVGznhqI1rnLLs08EAlAklDtG1-7ak"] ?: ""
-
 
     }
 
@@ -46,6 +45,7 @@ flutter {
     source = "../.."
 }
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")
