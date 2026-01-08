@@ -59,6 +59,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     setState(() => _isLoading = true);
     
     try {
+      // Add slight delay as requested
+      await Future.delayed(const Duration(milliseconds: 1));
+      
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       if (mounted) {
         Navigator.of(context).push(MaterialPageRoute(builder: (context) => MapScreen(userLocation: position)));
@@ -75,133 +78,146 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
   }
   
-  void _showScreen(Widget screen) {
+  void _showScreen(Widget screen) async {
     if (_isNavigating) return;
     _isNavigating = true;
-    Navigator.of(context).push(MaterialPageRoute(builder: (context) => screen))
-        .then((_) => _isNavigating = false);
+    
+    // Add slight delay as requested
+    await Future.delayed(const Duration(milliseconds: 1));
+    
+    if (mounted) {
+      Navigator.of(context).push(MaterialPageRoute(builder: (context) => screen))
+          .then((_) => _isNavigating = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     return Scaffold(
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverAppBar.large(
-            backgroundColor: Colors.white,
-            expandedHeight: 140,
-            stretch: true,
-            elevation: 0,
-            flexibleSpace: FlexibleSpaceBar(
-              title: const Text("Waste Tracker", 
-                style: TextStyle(
-                  color: Colors.black, 
-                  fontWeight: FontWeight.bold, 
-                  letterSpacing: -0.5
-                )
+      body: Stack(
+        children: [
+          CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverAppBar.large(
+                backgroundColor: Colors.white,
+                expandedHeight: 140,
+                stretch: true,
+                elevation: 0,
+                flexibleSpace: FlexibleSpaceBar(
+                  title: const Text("Waste Tracker", 
+                    style: TextStyle(
+                      color: Colors.black, 
+                      fontWeight: FontWeight.bold, 
+                      letterSpacing: -0.5
+                    )
+                  ),
+                  centerTitle: false,
+                  titlePadding: const EdgeInsetsDirectional.only(start: 20, bottom: 16),
+                ),
+                actions: [
+                  IconButton(
+                    onPressed: () => _showScreen(const NotificationScreen()),
+                    icon: const Icon(Icons.notifications_none_rounded, color: Colors.black),
+                  ),
+                  const SizedBox(width: 8),
+                ],
               ),
-              centerTitle: false,
-              titlePadding: const EdgeInsetsDirectional.only(start: 20, bottom: 16),
-            ),
-            actions: [
-              IconButton(
-                onPressed: () => _showScreen(const NotificationScreen()),
-                icon: const Icon(Icons.notifications_none_rounded, color: Colors.black),
-              ),
-              IconButton(
-                onPressed: () => _authService.signOut(),
-                icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-              ),
-              const SizedBox(width: 8),
-            ],
-          ),
-          SliverToBoxAdapter(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Hello, ${user?.displayName ?? 'Green Warrior'}",
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Every bit counts. Let's keep it clean.",
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                    ),
-                    const SizedBox(height: 24),
-                    LiveTrackingBanner(
-                      isLoading: _isLoading,
-                      onTap: _navigateToMap,
-                    ),
-                    const SizedBox(height: 16),
-                    TruckEtaWidget(
-                      userPosition: _userPosition,
-                      onMapTap: _navigateToMap,
-                    ),
-                    const SizedBox(height: 32),
-                    const Text(
-                      "Our Services",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: -0.5),
-                    ),
-                    const SizedBox(height: 16),
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 1.1,
+              SliverToBoxAdapter(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildServiceCard(
-                          icon: Icons.local_shipping_rounded,
-                          title: "Track Truck",
-                          color: const Color(0xFFE8F5E9),
+                        Text(
+                          "Hello, ${user?.displayName ?? 'Green Warrior'}",
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Every bit counts. Let's keep it clean.",
+                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                        ),
+                        const SizedBox(height: 24),
+                        LiveTrackingBanner(
+                          isLoading: _isLoading,
                           onTap: _navigateToMap,
                         ),
-                        _buildServiceCard(
-                          icon: Icons.bolt_rounded,
-                          title: "On-Demand",
-                          color: const Color(0xFFF1F8E9),
-                          onTap: () => _showScreen(const OnDemandServiceScreen()),
+                        const SizedBox(height: 16),
+                        TruckEtaWidget(
+                          userPosition: _userPosition,
+                          onMapTap: _navigateToMap,
                         ),
-                        _buildServiceCard(
-                          icon: Icons.account_balance_wallet_rounded,
-                          title: "Sell & Earn",
-                          color: const Color(0xFFE0F2F1),
-                          onTap: () => _showScreen(const SellWasteScreen()),
+                        const SizedBox(height: 32),
+                        const Text(
+                          "Our Services",
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: -0.5),
                         ),
-                        _buildServiceCard(
-                          icon: Icons.gavel_rounded,
-                          title: "Complaints",
-                          color: const Color(0xFFE8F5E9),
-                          onTap: () => _showScreen(const ComplaintScreen()),
+                        const SizedBox(height: 16),
+                        GridView.count(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 1.1,
+                          children: [
+                            _buildServiceCard(
+                              icon: Icons.local_shipping_rounded,
+                              title: "Track Truck",
+                              color: const Color(0xFFE8F5E9),
+                              onTap: _navigateToMap,
+                            ),
+                            _buildServiceCard(
+                              icon: Icons.bolt_rounded,
+                              title: "On-Demand",
+                              color: const Color(0xFFF1F8E9),
+                              onTap: () => _showScreen(const OnDemandServiceScreen()),
+                            ),
+                            _buildServiceCard(
+                              icon: Icons.account_balance_wallet_rounded,
+                              title: "Sell & Earn",
+                              color: const Color(0xFFE0F2F1),
+                              onTap: () => _showScreen(const SellWasteScreen()),
+                            ),
+                            _buildServiceCard(
+                              icon: Icons.gavel_rounded,
+                              title: "Complaints",
+                              color: const Color(0xFFE8F5E9),
+                              onTap: () => _showScreen(const ComplaintScreen()),
+                            ),
+                            _buildServiceCard(
+                              icon: Icons.event_available_rounded,
+                              title: "Schedule",
+                              color: const Color(0xFFF1F8E9),
+                              onTap: () => _showScreen(const ScheduleScreen()),
+                            ),
+                            _buildServiceCard(
+                              icon: Icons.tune_rounded,
+                              title: "Settings",
+                              color: const Color(0xFFF5F5F7),
+                              onTap: () => _showScreen(const SettingsScreen()),
+                            ),
+                          ],
                         ),
-                        _buildServiceCard(
-                          icon: Icons.event_available_rounded,
-                          title: "Schedule",
-                          color: const Color(0xFFF1F8E9),
-                          onTap: () => _showScreen(const ScheduleScreen()),
-                        ),
-                        _buildServiceCard(
-                          icon: Icons.tune_rounded,
-                          title: "Settings",
-                          color: const Color(0xFFF5F5F7),
-                          onTap: () => _showScreen(const SettingsScreen()),
-                        ),
+                        const SizedBox(height: 40),
                       ],
                     ),
-                    const SizedBox(height: 40),
-                  ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
+          if (_isLoading)
+            Container(
+              color: Colors.white.withOpacity(0.5),
+              child: const Center(
+                child: CircularProgressIndicator(color: Color(0xFF00C853)),
+              ),
+            ),
         ],
       ),
     );

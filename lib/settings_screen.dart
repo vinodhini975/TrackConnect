@@ -15,7 +15,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = false;
-  bool _darkMode = false;
   bool _locationAccess = false;
   bool _isLoading = true;
 
@@ -39,8 +38,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _notificationsEnabled = notificationStatus.isGranted;
         _locationAccess = locationGranted;
-        // Check current brightness to set initial dark mode toggle state
-        _darkMode = Theme.of(context).brightness == Brightness.dark;
         _isLoading = false;
       });
     }
@@ -145,18 +142,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             activeColor: Colors.green,
             onChanged: _handleNotificationToggle,
           ),
-          SwitchListTile(
-            title: const Text("Dark Mode"),
-            subtitle: const Text("Enable dark theme"),
-            value: _darkMode,
-            activeColor: Colors.green,
-            onChanged: (value) {
-              setState(() {
-                _darkMode = value;
-              });
-              MyApp.of(context)?.toggleTheme(value);
-            },
-          ),
           const Divider(),
           _buildSectionHeader("Privacy & Permissions"),
           SwitchListTile(
@@ -168,14 +153,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
           _buildSectionHeader("Account"),
-          ListTile(
-            title: const Text("Edit Profile"),
-            leading: const Icon(Icons.person),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
-            },
-          ),
           ListTile(
             title: const Text("Log Out"),
             leading: const Icon(Icons.logout, color: Colors.red),

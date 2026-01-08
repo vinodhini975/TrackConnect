@@ -100,7 +100,10 @@ class _MapScreenState extends State<MapScreen> {
       if (snapshot.docs.isNotEmpty) {
         final data = snapshot.docs.first.data();
         if (data.containsKey('latitude') && data.containsKey('longitude')) {
-          final newTruckPos = LatLng(data['latitude'], data['longitude']);
+          final newTruckPos = LatLng(
+            (data['latitude'] ?? 0.0).toDouble(),
+            (data['longitude'] ?? 0.0).toDouble(),
+          );
           if (mounted) {
             setState(() {
               _truckLocation = newTruckPos;

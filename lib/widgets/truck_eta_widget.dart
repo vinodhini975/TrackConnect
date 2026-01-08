@@ -29,27 +29,31 @@ class _TruckEtaWidgetState extends State<TruckEtaWidget> {
     bool serviceEnabled;
     LocationPermission permission;
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      if (mounted) setState(() => _isLocatingEnabled = false);
-      return;
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
+    try {
+      serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
         if (mounted) setState(() => _isLocatingEnabled = false);
         return;
       }
-    }
-    
-    if (permission == LocationPermission.deniedForever) {
-      if (mounted) setState(() => _isLocatingEnabled = false);
-      return;
-    }
 
-    if (mounted) setState(() => _isLocatingEnabled = true);
+      permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) setState(() => _isLocatingEnabled = false);
+          return;
+        }
+      }
+      
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) setState(() => _isLocatingEnabled = false);
+        return;
+      }
+
+      if (mounted) setState(() => _isLocatingEnabled = true);
+    } catch (e) {
+      if (mounted) setState(() => _isLocatingEnabled = false);
+    }
   }
 
   @override
@@ -57,47 +61,65 @@ class _TruckEtaWidgetState extends State<TruckEtaWidget> {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('drivers').limit(1).snapshots(),
       builder: (context, snapshot) {
+        // Handle potential errors in StreamBuilder
+        if (snapshot.hasError) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Error fetching truck data"), duration: Duration(seconds: 2))
+              );
+            }
+          });
+        }
+
         bool hasData = snapshot.hasData && 
                       snapshot.data!.docs.isNotEmpty && 
                       widget.userPosition != null && 
-                      _isLocatingEnabled;
+                      _isLocatingEnabled &&
+                      !snapshot.hasError;
 
         int? minutes;
         double? distance;
         
         if (hasData) {
-          final truckData = snapshot.data!.docs.first.data() as Map<String, dynamic>;
-          final truckLat = truckData['latitude'] as double;
-          final truckLng = truckData['longitude'] as double;
+          try {
+            final truckData = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+            final truckLat = (truckData['latitude'] ?? 0.0).toDouble();
+            final truckLng = (truckData['longitude'] ?? 0.0).toDouble();
 
-          distance = Geolocator.distanceBetween(
-            widget.userPosition!.latitude, widget.userPosition!.longitude,
-            truckLat, truckLng,
-          );
+            distance = Geolocator.distanceBetween(
+              widget.userPosition!.latitude, widget.userPosition!.longitude,
+              truckLat, truckLng,
+            );
 
-          minutes = (distance / 400).ceil();
-          if (minutes < 1) minutes = 1;
+            minutes = (distance / 400).ceil();
+            if (minutes < 1) minutes = 1;
+          } catch (e) {
+            hasData = false; // Fallback to standby on cast error
+          }
         }
 
-        // Always show the card, just change content if no data
         Color accentColor = const Color(0xFF00C853);
         String statusLabel = "Standby";
         IconData statusIcon = Icons.sensors_off_rounded;
         String etaValue = "-";
 
-        if (hasData && minutes != null) {
-          etaValue = minutes.toString();
-          statusIcon = Icons.local_shipping_rounded;
-          statusLabel = "On its way";
-          
-          if (minutes > 15) {
+        if (hasData && minutes != null && distance != null) {
+          if (distance > 500) {
+            etaValue = "-";
             accentColor = const Color(0xFFFF3B30);
             statusLabel = "Quite far";
             statusIcon = Icons.location_searching_rounded;
-          } else if (minutes > 5) {
-            accentColor = const Color(0xFFFF9500);
-            statusLabel = "Approaching";
-            statusIcon = Icons.moped_rounded;
+          } else {
+            etaValue = minutes.toString();
+            statusIcon = Icons.local_shipping_rounded;
+            statusLabel = "On its way";
+            
+            if (minutes > 5) {
+              accentColor = const Color(0xFFFF9500);
+              statusLabel = "Approaching";
+              statusIcon = Icons.moped_rounded;
+            }
           }
         }
 
@@ -106,136 +128,131 @@ class _TruckEtaWidgetState extends State<TruckEtaWidget> {
           margin: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(color: Colors.grey.withOpacity(0.1)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: IntrinsicHeight(
-            child: Row(
-              children: [
-                Container(
-                  width: 75,
-                  decoration: BoxDecoration(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              height: 110, // Slightly increased height to prevent overflow
+              child: Row(
+                children: [
+                  Container(
+                    width: 70,
                     color: accentColor.withOpacity(0.08),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(28),
-                      bottomLeft: Radius.circular(28),
+                    child: Center(
+                      child: Icon(statusIcon, color: accentColor, size: 28),
                     ),
                   ),
-                  child: Center(
-                    child: Icon(statusIcon, color: accentColor, size: 30),
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              statusLabel.toUpperCase(),
-                              style: TextStyle(
-                                color: accentColor,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 10,
-                                letterSpacing: 1.1,
-                              ),
-                            ),
-                            if (distance != null)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
                               Text(
-                                distance < 1000 
-                                    ? '${distance.toInt()} m' 
-                                    : '${(distance / 1000).toStringAsFixed(1)} km',
+                                statusLabel.toUpperCase(),
                                 style: TextStyle(
-                                  color: Colors.grey[400],
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11,
+                                  color: accentColor,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 10,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          hasData ? "Truck #402" : "Searching for truck...",
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        GestureDetector(
-                          onTap: widget.onMapTap,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF2F2F7),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.map_rounded, size: 12, color: Colors.grey[700]),
-                                const SizedBox(width: 5),
+                              if (distance != null)
                                 Text(
-                                  "Open Map",
+                                  distance < 1000 
+                                      ? '${distance.toInt()} m' 
+                                      : '${(distance / 1000).toStringAsFixed(1)} km',
                                   style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.grey[700],
+                                    color: Colors.grey[400],
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
                                   ),
                                 ),
-                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            hasData ? "Truck #402" : "Searching for truck...",
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -0.5,
                             ),
+                          ),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: widget.onMapTap,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF2F2F7),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.map_rounded, size: 12, color: Colors.grey[700]),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    "LIVE TRACK",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.grey[700],
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 85,
+                    color: accentColor,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          etaValue,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
+                            height: 1,
+                          ),
+                        ),
+                        const Text(
+                          "MIN",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 22),
-                  decoration: BoxDecoration(
-                    color: accentColor,
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(28),
-                      bottomRight: Radius.circular(28),
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        etaValue,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          height: 1,
-                        ),
-                      ),
-                      const Text(
-                        "MIN",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

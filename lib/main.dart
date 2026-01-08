@@ -35,20 +35,12 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  ThemeMode _themeMode = ThemeMode.light;
-
-  void toggleTheme(bool isDark) {
-    setState(() {
-      _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Waste Tracker',
-      themeMode: _themeMode,
+      themeMode: ThemeMode.light,
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
