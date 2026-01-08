@@ -2,23 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dashboard_screen.dart';
-import 'signup_screen.dart';
 import 'auth_service.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class SignupScreen extends StatefulWidget {
+  const SignupScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   final AuthService _authService = AuthService();
   bool _isLoading = false;
 
-  void _login() async {
+  void _signup() async {
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showError("Passwords do not match");
+      return;
+    }
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       _showError("Please fill in all fields");
       return;
@@ -26,11 +30,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await _authService.signInWithEmail(
+      await _authService.signUpWithEmail(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
-      // Main.dart handles navigation via StreamBuilder
     } catch (e) {
       _showError(e.toString());
     } finally {
@@ -41,7 +44,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void _loginWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      await _authService.signInWithGoogle(isSignUp: false);
+      await _authService.signInWithGoogle(isSignUp: true);
+      if (mounted) Navigator.pop(context); // Go back if successful (handled by StreamBuilder)
     } catch (e) {
       _showError(e.toString());
     } finally {
@@ -54,24 +58,17 @@ class _LoginScreenState extends State<LoginScreen> {
     
     if (error is FirebaseAuthException) {
       switch (error.code) {
-        case 'user-not-found':
-          message = "No account found with this email. Have you signed up yet?";
+        case 'email-already-in-use':
+          message = "This email is already registered. Try logging in.";
           break;
-        case 'wrong-password':
-          message = "Incorrect password. Please try again.";
+        case 'weak-password':
+          message = "That password is too weak. Try something longer.";
           break;
         case 'invalid-email':
-          message = "That email address doesn't look right.";
-          break;
-        case 'user-disabled':
-          message = "This account has been disabled. Contact support.";
+          message = "Please enter a valid email address.";
           break;
         default:
           message = error.message ?? message;
-      }
-    } else if (error is PlatformException) {
-      if (error.code == 'network_error') {
-        message = "Please check your internet connection.";
       }
     }
 
@@ -103,30 +100,24 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 50),
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.local_shipping_rounded, size: 64, color: Color(0xFF2E7D32)),
-                ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                padding: EdgeInsets.zero,
+                alignment: Alignment.centerLeft,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
               const Text(
-                "Welcome Back",
+                "Create Account",
                 style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: -1),
               ),
               const Text(
-                "Sign in to continue tracking",
+                "Join the green movement today",
                 style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: FontWeight.w400),
               ),
               const SizedBox(height: 48),
               TextField(
                 controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
                   hintText: "Email",
                   prefixIcon: const Icon(Icons.email_outlined),
@@ -153,12 +144,27 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _confirmPasswordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  hintText: "Confirm Password",
+                  prefixIcon: const Icon(Icons.lock_reset_rounded),
+                  filled: true,
+                  fillColor: const Color(0xFFF5F5F7),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
                 height: 58,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _login,
+                  onPressed: _isLoading ? null : _signup,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00C853),
                     foregroundColor: Colors.white,
@@ -175,7 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         )
-                      : const Text("Sign In", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                      : const Text("Sign Up", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
                 ),
               ),
               const SizedBox(height: 24),
@@ -194,26 +200,23 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: OutlinedButton.icon(
                   onPressed: _isLoading ? null : _loginWithGoogle,
                   icon: Image.network('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_\"G\"_logo.svg/1200px-Google_\"G\"_logo.svg.png', height: 24),
-                  label: const Text("Continue with Google", style: TextStyle(fontSize: 16, color: Colors.black, fontWeight: FontWeight.w500)),
+                  label: const Text("Sign up with Google", style: TextStyle(fontSize: 16, color: Colors.black, fontWeight: FontWeight.w500)),
                   style: OutlinedButton.styleFrom(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     side: BorderSide(color: Colors.grey[300]!),
-                    backgroundColor: Colors.white,
                   ),
                 ),
               ),
               const SizedBox(height: 32),
               Center(
                 child: TextButton(
-                  onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const SignupScreen()));
-                  },
+                  onPressed: () => Navigator.pop(context),
                   child: RichText(
                     text: const TextSpan(
-                      text: "Don't have an account? ",
+                      text: "Already have an account? ",
                       style: TextStyle(color: Colors.grey, fontSize: 15),
                       children: [
-                        TextSpan(text: "Sign Up", style: TextStyle(color: Color(0xFF00C853), fontWeight: FontWeight.bold)),
+                        TextSpan(text: "Sign In", style: TextStyle(color: Color(0xFF00C853), fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),

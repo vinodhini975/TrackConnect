@@ -14,7 +14,7 @@ class NotificationService {
          await Firebase.initializeApp();
        }
     } catch (e) {
-      debugPrint("Firebase initialization failed (probably missing google-services.json): $e");
+      debugPrint("Firebase initialization failed (probably missing google-services(1).json): $e");
       // Continue without Firebase for local notifications if possible
     }
 

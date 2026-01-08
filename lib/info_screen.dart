@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'widgets/glass_app_bar.dart';
 
 class InfoScreen extends StatelessWidget {
   const InfoScreen({super.key});
@@ -25,16 +26,8 @@ class InfoScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Info & Help'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        titleTextStyle: const TextStyle(
-            color: Colors.black, fontSize: 20, fontWeight: FontWeight.bold),
+      appBar: const GlassAppBar(
+        title: Text('Info & Help'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),

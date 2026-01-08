@@ -23,9 +23,11 @@ dependencies:
   cupertino_icons: ^1.0.8
   # flutter_geofence: ^0.4.4 # Removed due to namespace issue, using manual geofence logic instead
   # geofencing_api: ^2.0.0 # Removed as not used in the project
-  location: ^8.0.0
-  android_intent_plus: ^6.0.0
   url_launcher: ^6.3.2
+  firebase_auth: ^5.7.0
+  cloud_firestore: ^5.6.12
+  intl: ^0.19.0
+  google_sign_in: ^6.2.2
 
 dev_dependencies:
   flutter_test:

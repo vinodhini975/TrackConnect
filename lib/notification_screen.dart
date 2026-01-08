@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'widgets/glass_app_bar.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -73,24 +74,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
     final theme = Theme.of(context);
     
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        backgroundColor: theme.appBarTheme.backgroundColor,
-        foregroundColor: theme.appBarTheme.foregroundColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: theme.appBarTheme.foregroundColor),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+      appBar: const GlassAppBar(
+        title: Text('Notifications'),
       ),
       body: _notifications.isEmpty 
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.notifications_off, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text("No notifications", style: TextStyle(fontSize: 18, color: Colors.grey)),
+                  const Icon(Icons.notifications_off, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text("No notifications", style: TextStyle(fontSize: 18, color: Colors.grey)),
                 ],
               ),
             )

@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "655828864389-i0uvc4pkfchtkb511490nvi676rdajpb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.driver_app",
+            "certificate_hash": "fc9750d52344e7a22d53f743daed80729a7ce40b"
+          }
+        },
+        {
           "client_id": "655828864389-ccoc2ndhsg0ggmevmob0bh0al1tgmg3l.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -43,12 +51,20 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:655828864389:android:61990d5b23348f990f48ec",
+        "mobilesdk_app_id": "1:655828864389:android:a973bbd5a9f276670f48ec",
         "android_client_info": {
-          "package_name": "com.example.trackconnect"
+          "package_name": "com.example.waste_tracker"
         }
       },
       "oauth_client": [
+        {
+          "client_id": "655828864389-6cmq1r5kcrsv1lhc3c5msb0h3brej4jt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.waste_tracker",
+            "certificate_hash": "fc9750d52344e7a22d53f743daed80729a7ce40b"
+          }
+        },
         {
           "client_id": "655828864389-ccoc2ndhsg0ggmevmob0bh0al1tgmg3l.apps.googleusercontent.com",
           "client_type": 3

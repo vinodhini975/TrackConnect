@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'main.dart';
 import 'profile_screen.dart';
 import 'login_screen.dart';
+import 'widgets/glass_app_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -130,20 +131,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Theme.of(context).appBarTheme.foregroundColor),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        titleTextStyle: TextStyle(
-            color: Theme.of(context).appBarTheme.foregroundColor, fontSize: 20, fontWeight: FontWeight.bold),
+      appBar: const GlassAppBar(
+        title: Text('Settings'),
       ),
       body: ListView(
+        padding: EdgeInsets.zero,
         children: [
-          const SizedBox(height: 10),
           _buildSectionHeader("Preferences"),
           SwitchListTile(
             title: const Text("Notifications"),
