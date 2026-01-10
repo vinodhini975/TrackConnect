@@ -67,6 +67,24 @@ class NotificationService {
     }
   }
 
+  static Future<void> showLocalNotification(String title, String body) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'high_importance_channel',
+      'High Importance Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+    await _localNotifications.show(
+      0,
+      title,
+      body,
+      platformChannelSpecifics,
+    );
+  }
+
   static void _showForegroundNotification(RemoteMessage message) {
     RemoteNotification? notification = message.notification;
     AndroidNotification? android = message.notification?.android;

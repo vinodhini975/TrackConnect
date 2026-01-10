@@ -5,6 +5,7 @@ import 'main.dart';
 import 'profile_screen.dart';
 import 'login_screen.dart';
 import 'widgets/glass_app_bar.dart';
+import 'auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -154,6 +155,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(),
           _buildSectionHeader("Account"),
           ListTile(
+            title: const Text("Edit Profile"),
+            subtitle: const Text("Name, Ward, & Settings"),
+            leading: const Icon(Icons.person, color: Colors.blue),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+               Navigator.push(
+                 context, 
+                 PageRouteBuilder(
+                   pageBuilder: (context, animation, secondaryAnimation) => const ProfileScreen(),
+                   transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                     const begin = Offset(1.0, 0.0);
+                     const end = Offset.zero;
+                     const curve = Curves.easeInOut;
+                     var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                     var offsetAnimation = animation.drive(tween);
+                     return SlideTransition(position: offsetAnimation, child: child);
+                   },
+                 )
+               );
+            },
+          ),
+          ListTile(
             title: const Text("Log Out"),
             leading: const Icon(Icons.logout, color: Colors.red),
             onTap: () {
@@ -191,14 +214,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text("Cancel"),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Navigate to Login Screen and remove back stack
-               Navigator.pushAndRemoveUntil(
-                context, 
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false
-              );
+            onPressed: () async {
+              Navigator.pop(context); // Close the dialog
+              
+              await AuthService().signOut(); // Perform actual sign out
+              
+              // Pop all screens to return to the root (which will be LoginScreen via StreamBuilder)
+              if (mounted) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
             },
             child: const Text("Log Out", style: TextStyle(color: Colors.red)),
           ),

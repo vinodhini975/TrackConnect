@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class MapScreen extends StatefulWidget {
   final Position userLocation;
@@ -21,8 +22,15 @@ class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
   late LatLng _userLocation;
   LatLng _truckLocation = const LatLng(13.960178, 75.510884);
+  String _truckName = "Waste Truck"; // State variable for truck name
   StreamSubscription? _truckSubscription;
   StreamSubscription? _userPosSubscription;
+  String _userWard = "Default"; // Placeholder for user's ward
+
+  // Tracking State
+  String? _lockedDriverId; 
+  static const double kEnterRadius = 2000.0;
+  static const double kExitRadius = 2500.0;
 
   final double geofenceRadius = 500; // meters
   bool isTruckInsideGeofence = false;
@@ -66,12 +74,27 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _userLocation = LatLng(widget.userLocation.latitude, widget.userLocation.longitude);
+    _fetchUserWard();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startUserLiveTracking();
       _listenToTruckFirestore();
       _getRoute();
     });
+  }
+
+  Future<void> _fetchUserWard() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        if (doc.exists && doc.data() != null && doc.data()!.containsKey('ward')) {
+          if (mounted) setState(() => _userWard = doc.data()!['ward']);
+        }
+      } catch (e) {
+        debugPrint("Error fetching user ward: $e");
+      }
+    }
   }
 
   void _startUserLiveTracking() {
@@ -94,19 +117,135 @@ class _MapScreenState extends State<MapScreen> {
   void _listenToTruckFirestore() {
     _truckSubscription = FirebaseFirestore.instance
         .collection('drivers')
-        .limit(1)
         .snapshots()
         .listen((snapshot) {
-      if (snapshot.docs.isNotEmpty) {
-        final data = snapshot.docs.first.data();
-        if (data.containsKey('latitude') && data.containsKey('longitude')) {
-          final newTruckPos = LatLng(
-            (data['latitude'] ?? 0.0).toDouble(),
-            (data['longitude'] ?? 0.0).toDouble(),
-          );
+      
+      Map<String, dynamic>? activeDriverData;
+
+      try {
+        // STEP 1: GATEKEEPER (Filter by Profile Ward Only)
+        final wardDocs = snapshot.docs.where((doc) {
+           final d = doc.data();
+           final dWard = d['ward']?.toString() ?? "Default";
+           return dWard == _userWard;
+        }).toList();
+
+        // STEP 2: TRACKER (Lock-on Logic)
+
+        if (_lockedDriverId != null) {
+           final lockedDoc = wardDocs.where((d) => d.id == _lockedDriverId).firstOrNull;
+           if (lockedDoc != null) {
+              final data = lockedDoc.data();
+              bool isActive = false;
+              if (data.containsKey('dutySession') && data['dutySession'] is Map) {
+                 isActive = data['dutySession']['isActive'] ?? false;
+              }
+              
+              double dLat = 0.0, dLng = 0.0;
+               if (data.containsKey('currentLocation') && data['currentLocation'] is Map) {
+                  final loc = data['currentLocation'] as Map<String, dynamic>;
+                  dLat = (loc['latitude'] ?? 0.0).toDouble();
+                  dLng = (loc['longitude'] ?? 0.0).toDouble();
+               } else {
+                  dLat = (data['latitude'] ?? 0.0).toDouble();
+                  dLng = (data['longitude'] ?? 0.0).toDouble();
+               }
+
+              double dist = Geolocator.distanceBetween(
+                 _userLocation.latitude, _userLocation.longitude, dLat, dLng);
+
+              if (!isActive || dist > kExitRadius) {
+                 // Release
+                 if (mounted) setState(() => _lockedDriverId = null);
+              } else {
+                 // Keep
+                 activeDriverData = data;
+              }
+           } else {
+              if (mounted) setState(() => _lockedDriverId = null);
+           }
+        }
+
+        if (_lockedDriverId == null) {
+           double minDistance = double.infinity;
+           Map<String, dynamic>? closestDriver;
+           String? closestId;
+
+           for (var doc in wardDocs) {
+              final data = doc.data();
+              bool isActive = false;
+              if (data.containsKey('dutySession') && data['dutySession'] is Map) {
+                 isActive = data['dutySession']['isActive'] ?? false;
+              }
+
+              if (isActive) {
+                 double dLat = 0.0, dLng = 0.0;
+                 if (data.containsKey('currentLocation') && data['currentLocation'] is Map) {
+                    final loc = data['currentLocation'] as Map<String, dynamic>;
+                    dLat = (loc['latitude'] ?? 0.0).toDouble();
+                    dLng = (loc['longitude'] ?? 0.0).toDouble();
+                 } else {
+                    dLat = (data['latitude'] ?? 0.0).toDouble();
+                    dLng = (data['longitude'] ?? 0.0).toDouble();
+                 }
+
+                 if (dLat != 0 && dLng != 0) {
+                   double dist = Geolocator.distanceBetween(
+                     _userLocation.latitude, _userLocation.longitude, dLat, dLng);
+                   
+                   if (dist < kEnterRadius && dist < minDistance) {
+                     minDistance = dist;
+                     closestDriver = data;
+                     closestId = doc.id;
+                   }
+                 }
+              }
+           }
+
+           if (closestDriver != null && closestId != null) {
+              activeDriverData = closestDriver;
+              if (mounted) setState(() => _lockedDriverId = closestId);
+           }
+        }
+
+      } catch (e) {
+        debugPrint("Filter error: $e");
+      }
+
+      if (activeDriverData != null) {
+        final data = activeDriverData;
+        double lat = 0.0;
+        double lng = 0.0;
+
+        // Check for 'currentLocation' map first (preferred structure)
+        if (data.containsKey('currentLocation') && data['currentLocation'] is Map) {
+          final loc = data['currentLocation'] as Map<String, dynamic>;
+          lat = (loc['latitude'] ?? 0.0).toDouble();
+          lng = (loc['longitude'] ?? 0.0).toDouble();
+        } 
+        // Fallback to root level fields
+        else if (data.containsKey('latitude') && data.containsKey('longitude')) {
+          lat = (data['latitude'] ?? 0.0).toDouble();
+          lng = (data['longitude'] ?? 0.0).toDouble();
+        }
+
+        if (lat != 0.0 && lng != 0.0) {
+          final newTruckPos = LatLng(lat, lng);
+          
+          // Extract name logic
+          String fetchedName = "Waste Truck";
+          if (data.containsKey('vehicleId')) {
+             fetchedName = data['vehicleId'].toString();
+          } else if (data.containsKey('name')) {
+             fetchedName = data['name'].toString();
+          } else if (data.containsKey('driverId')) {
+             fetchedName = "Truck ${data['driverId']}";
+          }
+
           if (mounted) {
             setState(() {
               _truckLocation = newTruckPos;
+              _truckName = fetchedName;
             });
             _checkGeofence();
             _getRoute();
@@ -205,7 +344,7 @@ class _MapScreenState extends State<MapScreen> {
                 position: _truckLocation,
                 // Using a greener marker for the truck
                 icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), 
-                infoWindow: const InfoWindow(title: "Waste Truck #402"),
+                infoWindow: InfoWindow(title: _truckName),
               ),
             },
             polylines: _polylines,
@@ -325,7 +464,7 @@ class _MapScreenState extends State<MapScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(etaText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF00C853))),
-                        Text("Truck #402 • $distanceText away", style: TextStyle(color: Colors.grey[600], fontSize: 14, fontWeight: FontWeight.w600)),
+                        Text("$_truckName • $distanceText away", style: TextStyle(color: Colors.grey[600], fontSize: 14, fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -359,5 +498,21 @@ class _MapScreenState extends State<MapScreen> {
         );
       },
     );
+  }
+  bool _isLocationNearPolyline(LatLng userPos, List<dynamic> points) {
+    // Reusing the logic from TruckEtaWidget
+    const double kRouteBuffer = 500.0;
+    for (var p in points) {
+      if (p is Map) {
+        double pLat = (p['latitude'] ?? 0.0).toDouble();
+        double pLng = (p['longitude'] ?? 0.0).toDouble();
+        double dist = Geolocator.distanceBetween(userPos.latitude, userPos.longitude, pLat, pLng);
+        if (dist < kRouteBuffer) return true;
+      } else if (p is GeoPoint) {
+         double dist = Geolocator.distanceBetween(userPos.latitude, userPos.longitude, p.latitude, p.longitude);
+         if (dist < kRouteBuffer) return true;
+      }
+    }
+    return false;
   }
 }
