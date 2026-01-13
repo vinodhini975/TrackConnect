@@ -4,6 +4,8 @@ import 'package:geolocator/geolocator.dart';
 import 'main.dart';
 import 'profile_screen.dart';
 import 'login_screen.dart';
+import 'widgets/glass_app_bar.dart';
+import 'auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,7 +16,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = false;
-  bool _darkMode = false;
   bool _locationAccess = false;
   bool _isLoading = true;
 
@@ -38,8 +39,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _notificationsEnabled = notificationStatus.isGranted;
         _locationAccess = locationGranted;
-        // Check current brightness to set initial dark mode toggle state
-        _darkMode = Theme.of(context).brightness == Brightness.dark;
         _isLoading = false;
       });
     }
@@ -130,20 +129,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Theme.of(context).appBarTheme.foregroundColor),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        titleTextStyle: TextStyle(
-            color: Theme.of(context).appBarTheme.foregroundColor, fontSize: 20, fontWeight: FontWeight.bold),
+      appBar: const GlassAppBar(
+        title: Text('Settings'),
       ),
       body: ListView(
+        padding: EdgeInsets.zero,
         children: [
-          const SizedBox(height: 10),
           _buildSectionHeader("Preferences"),
           SwitchListTile(
             title: const Text("Notifications"),
@@ -151,18 +142,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _notificationsEnabled,
             activeColor: Colors.green,
             onChanged: _handleNotificationToggle,
-          ),
-          SwitchListTile(
-            title: const Text("Dark Mode"),
-            subtitle: const Text("Enable dark theme"),
-            value: _darkMode,
-            activeColor: Colors.green,
-            onChanged: (value) {
-              setState(() {
-                _darkMode = value;
-              });
-              MyApp.of(context)?.toggleTheme(value);
-            },
           ),
           const Divider(),
           _buildSectionHeader("Privacy & Permissions"),
@@ -177,10 +156,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSectionHeader("Account"),
           ListTile(
             title: const Text("Edit Profile"),
-            leading: const Icon(Icons.person),
+            subtitle: const Text("Name, Ward, & Settings"),
+            leading: const Icon(Icons.person, color: Colors.blue),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+               Navigator.push(
+                 context, 
+                 PageRouteBuilder(
+                   pageBuilder: (context, animation, secondaryAnimation) => const ProfileScreen(),
+                   transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                     const begin = Offset(1.0, 0.0);
+                     const end = Offset.zero;
+                     const curve = Curves.easeInOut;
+                     var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                     var offsetAnimation = animation.drive(tween);
+                     return SlideTransition(position: offsetAnimation, child: child);
+                   },
+                 )
+               );
             },
           ),
           ListTile(
@@ -221,14 +214,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text("Cancel"),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Navigate to Login Screen and remove back stack
-               Navigator.pushAndRemoveUntil(
-                context, 
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false
-              );
+            onPressed: () async {
+              Navigator.pop(context); // Close the dialog
+              
+              await AuthService().signOut(); // Perform actual sign out
+              
+              // Pop all screens to return to the root (which will be LoginScreen via StreamBuilder)
+              if (mounted) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
             },
             child: const Text("Log Out", style: TextStyle(color: Colors.red)),
           ),

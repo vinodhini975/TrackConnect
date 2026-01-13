@@ -1,11 +1,19 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'map_screen.dart';
 import 'schedule_screen.dart';
-import 'info_screen.dart';
-import 'info_screen.dart';
 import 'settings_screen.dart';
 import 'notification_screen.dart';
+import 'on_demand_service_screen.dart';
+import 'sell_waste_screen.dart';
+import 'complaint_screen.dart';
+import 'auth_service.dart';
+import 'widgets/truck_eta_widget.dart';
+import 'widgets/live_tracking_banner.dart';
 
 class DashboardScreen extends StatefulWidget {
   @override
@@ -13,385 +21,230 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> with TickerProviderStateMixin {
-  late AnimationController _slideController;
-  late Animation<Offset> _slideAnimation;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  final AuthService _authService = AuthService();
+  Position? _userPosition;
 
-  bool _isNavigating = false; // Flag to prevent multiple taps
-  bool _isLoading = false; // Flag to show loading indicator
+  bool _isNavigating = false;
+  bool _isLoading = false;
   
   @override
   void initState() {
     super.initState();
-    _slideController = AnimationController(
-      duration: Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _slideAnimation = Tween<Offset>(
-      begin: Offset(1.0, 0.0),
-      end: Offset(0.0, 0.0),
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOut,
-    ));
-    
-    _fadeController = AnimationController(
-      duration: Duration(milliseconds: 500),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeIn,
-    ));
-    
-    _slideController.forward();
+    _fadeController = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
+    _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
     _fadeController.forward();
+    _getCurrentLocation();
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low);
+      if (mounted) setState(() => _userPosition = position);
+    } catch (e) {
+      print("Could not get user position for ETA: $e");
+    }
   }
   
   @override
   void dispose() {
-    _slideController.dispose();
     _fadeController.dispose();
     super.dispose();
   }
   
   Future<void> _navigateToMap() async {
-    // Prevent multiple taps
     if (_isNavigating) return;
     _isNavigating = true;
-    
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
     
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        await Geolocator.openLocationSettings();
-        serviceEnabled = await Geolocator.isLocationServiceEnabled();
-        if (!serviceEnabled) {
-          _showError('Location services are disabled. Please enable them to use the map.');
-          _isNavigating = false; // Reset flag
-          return;
-        }
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied ||
-            permission == LocationPermission.deniedForever) {
-          _showError('Location permission denied. Please allow location access to use the map.');
-          _isNavigating = false; // Reset flag
-          return;
-        }
-      }
-
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      // Smooth navigation with fade animation
-      await Navigator.of(context).push(PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => MapScreen(userLocation: position),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          var begin = Offset(1.0, 0.0);
-          var end = Offset.zero;
-          var curve = Curves.easeInOut;
-
-          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-
-          return SlideTransition(
-            position: animation.drive(tween),
-            child: child,
-          );
-        },
-        transitionDuration: Duration(milliseconds: 400),
-      ));
-    } catch (e) {
-      _showError('Failed to get your location: $e');
-    } finally {
+      // Add slight delay as requested
+      await Future.delayed(const Duration(milliseconds: 1));
+      
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        Navigator.of(context).push(MaterialPageRoute(builder: (context) => MapScreen(userLocation: position)));
       }
-      _isNavigating = false; // Always reset the flag
+    } catch (e) {
+      _showError('Failed to get location: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+      _isNavigating = false;
     }
   }
   
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 3),
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
   }
   
-  // Add functionality methods for dashboard cards
-  void _showSchedule() {
-    // Prevent multiple taps
+  void _showScreen(Widget screen) async {
     if (_isNavigating) return;
     _isNavigating = true;
     
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const ScheduleScreen()),
-    ).then((_) => _isNavigating = false);
-  }
-  
-  void _showInfo() {
-    // Prevent multiple taps
-    if (_isNavigating) return;
-    _isNavigating = true;
+    // Add slight delay as requested
+    await Future.delayed(const Duration(milliseconds: 1));
     
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const InfoScreen()),
-    ).then((_) => _isNavigating = false);
-  }
-  
-  void _showSettings() {
-    // Prevent multiple taps
-    if (_isNavigating) return;
-    _isNavigating = true;
-    
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const SettingsScreen()),
-    ).then((_) => _isNavigating = false);
+    if (mounted) {
+      Navigator.of(context).push(MaterialPageRoute(builder: (context) => screen))
+          .then((_) => _isNavigating = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // Background pattern
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.green[50]!,
-                    Colors.white,
-                  ],
+      body: Stack(
+        children: [
+          CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              SliverAppBar.large(
+                backgroundColor: Colors.white,
+                expandedHeight: 140,
+                stretch: true,
+                elevation: 0,
+                flexibleSpace: FlexibleSpaceBar(
+                  title: const Text("Waste Tracker", 
+                    style: TextStyle(
+                      color: Colors.black, 
+                      fontWeight: FontWeight.bold, 
+                      letterSpacing: -0.5
+                    )
+                  ),
+                  centerTitle: false,
+                  titlePadding: const EdgeInsetsDirectional.only(start: 20, bottom: 16),
                 ),
+                actions: [
+                  IconButton(
+                    onPressed: () => _showScreen(const NotificationScreen()),
+                    icon: const Icon(Icons.notifications_none_rounded, color: Colors.black),
+                  ),
+                  const SizedBox(width: 8),
+                ],
               ),
-            ),
-            
-            // Main content
-            Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  SlideTransition(
-                    position: _slideAnimation,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              SliverToBoxAdapter(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Waste Tracker",
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green[800],
-                          ),
+                          "Hello, ${user?.displayName ?? 'Green Warrior'}",
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                         ),
-                        GestureDetector(
-                          onTap: () {
-                             Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationScreen()));
-                          },
-                          child: Container(
-                            padding: EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.green[100],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(
-                              Icons.notifications,
-                              color: Colors.green[700],
-                            ),
-                          ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Every bit counts. Let's keep it clean.",
+                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                         ),
-                      ],
-                    ),
-                  ),
-                  
-                  SizedBox(height: 24),
-                  
-                  // Welcome message
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Text(
-                      "Track your waste collection",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ),
-                  
-                  SizedBox(height: 32),
-                  
-                  // Service cards
-                  Expanded(
-                    child: SlideTransition(
-                      position: _slideAnimation,
-                      child: GridView.count(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        children: [
-                          _buildServiceCard(
-                            icon: Icons.local_shipping,
-                            title: "Track Truck",
-                            subtitle: "Real-time tracking",
-                            onTap: _navigateToMap,
-                          ),
-                          _buildServiceCard(
-                            icon: Icons.history,
-                            title: "Schedule",
-                            subtitle: "View schedules",
-                            onTap: _showSchedule,
-                          ),
-                          _buildServiceCard(
-                            icon: Icons.info,
-                            title: "Info",
-                            subtitle: "Learn more",
-                            onTap: _showInfo,
-                          ),
-                          _buildServiceCard(
-                            icon: Icons.settings,
-                            title: "Settings",
-                            subtitle: "App settings",
-                            onTap: _showSettings,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  SizedBox(height: 24),
-                  
-                  // Action button with smooth animation
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Container(
-                      width: double.infinity,
-                      height: 60,
-                      child: ElevatedButton(
-                        onPressed: _navigateToMap,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[700],
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 4,
+                        const SizedBox(height: 24),
+                        LiveTrackingBanner(
+                          isLoading: _isLoading,
+                          onTap: _navigateToMap,
                         ),
-                        child: _isLoading 
-                        ? SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 3,
-                            ),
-                          )
-                        : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        const SizedBox(height: 16),
+                        TruckEtaWidget(
+                          userPosition: _userPosition,
+                          onMapTap: _navigateToMap,
+                        ),
+                        const SizedBox(height: 32),
+                        const Text(
+                          "Our Services",
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                        ),
+                        const SizedBox(height: 16),
+                        GridView.count(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 1.1,
                           children: [
-                            Icon(Icons.map_outlined),
-                            SizedBox(width: 12),
-                            Text(
-                              "OPEN TRACKING MAP",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            _buildServiceCard(
+                              icon: Icons.local_shipping_rounded,
+                              title: "Track Truck",
+                              color: const Color(0xFFE8F5E9),
+                              onTap: _navigateToMap,
+                            ),
+                            _buildServiceCard(
+                              icon: Icons.bolt_rounded,
+                              title: "On-Demand",
+                              color: const Color(0xFFF1F8E9),
+                              onTap: () => _showScreen(const OnDemandServiceScreen()),
+                            ),
+                            _buildServiceCard(
+                              icon: Icons.account_balance_wallet_rounded,
+                              title: "Sell & Earn",
+                              color: const Color(0xFFE0F2F1),
+                              onTap: () => _showScreen(const SellWasteScreen()),
+                            ),
+                            _buildServiceCard(
+                              icon: Icons.gavel_rounded,
+                              title: "Complaints",
+                              color: const Color(0xFFE8F5E9),
+                              onTap: () => _showScreen(const ComplaintScreen()),
+                            ),
+                            _buildServiceCard(
+                              icon: Icons.event_available_rounded,
+                              title: "Schedule",
+                              color: const Color(0xFFF1F8E9),
+                              onTap: () => _showScreen(const ScheduleScreen()),
+                            ),
+                            _buildServiceCard(
+                              icon: Icons.tune_rounded,
+                              title: "Settings",
+                              color: const Color(0xFFF5F5F7),
+                              onTap: () => _showScreen(const SettingsScreen()),
                             ),
                           ],
                         ),
-                      ),
+                        const SizedBox(height: 40),
+                      ],
                     ),
                   ),
-                ],
+                ),
+              ),
+            ],
+          ),
+          if (_isLoading)
+            Container(
+              color: Colors.white.withOpacity(0.5),
+              child: const Center(
+                child: CircularProgressIndicator(color: Color(0xFF00C853)),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
-  
-  Widget _buildServiceCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
+
+  Widget _buildServiceCard({required IconData icon, required String title, required Color color, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
+            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: Colors.green[700],
-                  size: 30,
-                ),
-              ),
-              SizedBox(height: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
-              ),
-              SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ],
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              child: Icon(icon, color: Colors.black87, size: 28),
+            ),
+            const SizedBox(height: 12),
+            Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: -0.2)),
+          ],
         ),
       ),
     );

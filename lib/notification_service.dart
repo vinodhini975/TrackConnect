@@ -14,7 +14,7 @@ class NotificationService {
          await Firebase.initializeApp();
        }
     } catch (e) {
-      debugPrint("Firebase initialization failed (probably missing google-services.json): $e");
+      debugPrint("Firebase initialization failed (probably missing google-services(1).json): $e");
       // Continue without Firebase for local notifications if possible
     }
 
@@ -65,6 +65,24 @@ class NotificationService {
     } catch (e) {
       debugPrint("Permission request error: $e");
     }
+  }
+
+  static Future<void> showLocalNotification(String title, String body) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'high_importance_channel',
+      'High Importance Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+    await _localNotifications.show(
+      0,
+      title,
+      body,
+      platformChannelSpecifics,
+    );
   }
 
   static void _showForegroundNotification(RemoteMessage message) {
