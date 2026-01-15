@@ -44,10 +44,19 @@ class AuthService {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         _isVerifying = false;
-        return null;
+        return null; // User cancelled
       }
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      
+      if (googleAuth.accessToken == null || googleAuth.idToken == null) {
+        _isVerifying = false;
+        throw FirebaseAuthException(
+          code: 'missing-auth-token',
+          message: 'Failed to get authentication tokens from Google',
+        );
+      }
+      
       final OAuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -76,11 +85,20 @@ class AuthService {
       _userController.add(userCredential.user); // Manually release the user to the UI
       return userCredential;
       
+    } on FirebaseAuthException catch (e) {
+      _isVerifying = false;
+      _userController.add(null);
+      rethrow;
     } catch (e) {
       _isVerifying = false;
       // Ensure UI stays on Login screen by reinforcing null state if something broke
-      _userController.add(null); 
-      rethrow;
+      _userController.add(null);
+      
+      // Convert generic errors to Firebase errors for better handling
+      throw FirebaseAuthException(
+        code: 'google-sign-in-failed',
+        message: 'Google Sign-In failed: ${e.toString()}',
+      );
     }
   }
 

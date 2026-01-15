@@ -6,8 +6,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'tracking_service.dart';
 
 class MapScreen extends StatefulWidget {
   final Position userLocation;
@@ -22,18 +24,16 @@ class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
   late LatLng _userLocation;
   LatLng _truckLocation = const LatLng(13.960178, 75.510884);
-  String _truckName = "Waste Truck"; // State variable for truck name
+  String _truckName = "Locating..."; 
+  String _truckAddress = "Fetching address...";
   StreamSubscription? _truckSubscription;
   StreamSubscription? _userPosSubscription;
-  String _userWard = "Default"; // Placeholder for user's ward
+  StreamSubscription? _trackingSubscription;
+  String _userWard = "Default"; 
 
-  // Tracking State
-  String? _lockedDriverId; 
-  static const double kEnterRadius = 2000.0;
-  static const double kExitRadius = 2500.0;
+  final TrackingService _trackingService = TrackingService();
 
-  final double geofenceRadius = 500; // meters
-  bool isTruckInsideGeofence = false;
+  static const double kEnterRadius = 5000.0;
 
   Set<Polyline> _polylines = {};
   List<LatLng> polylineCoordinates = [];
@@ -76,10 +76,13 @@ class _MapScreenState extends State<MapScreen> {
     _userLocation = LatLng(widget.userLocation.latitude, widget.userLocation.longitude);
     _fetchUserWard();
 
+    _trackingSubscription = _trackingService.selectedDriverStream.listen((driverId) {
+      if (mounted) _listenToTruckFirestore();
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startUserLiveTracking();
       _listenToTruckFirestore();
-      _getRoute();
     });
   }
 
@@ -89,165 +92,77 @@ class _MapScreenState extends State<MapScreen> {
       try {
         final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
         if (doc.exists && doc.data() != null && doc.data()!.containsKey('ward')) {
-          if (mounted) setState(() => _userWard = doc.data()!['ward']);
+          if (mounted) {
+            setState(() => _userWard = doc.data()!['ward']);
+            _listenToTruckFirestore();
+          }
         }
-      } catch (e) {
-        debugPrint("Error fetching user ward: $e");
-      }
+      } catch (e) {}
     }
   }
 
   void _startUserLiveTracking() {
     _userPosSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 20,
-      ),
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 5),
     ).listen((Position position) {
       LatLng newPosition = LatLng(position.latitude, position.longitude);
       if (mounted) {
-        setState(() {
-          _userLocation = newPosition;
-        });
+        setState(() => _userLocation = newPosition);
         _getRoute();
       }
     });
   }
 
   void _listenToTruckFirestore() {
-    _truckSubscription = FirebaseFirestore.instance
-        .collection('drivers')
-        .snapshots()
-        .listen((snapshot) {
-      
-      Map<String, dynamic>? activeDriverData;
+    _truckSubscription?.cancel();
+    _truckSubscription = FirebaseFirestore.instance.collection('drivers').snapshots().listen((snapshot) {
+      Map<String, dynamic>? targetDriverData;
+      String? lockedId = _trackingService.selectedDriverId;
 
       try {
-        // STEP 1: GATEKEEPER (Filter by Profile Ward Only)
-        final wardDocs = snapshot.docs.where((doc) {
-           final d = doc.data();
-           final dWard = d['ward']?.toString() ?? "Default";
-           return dWard == _userWard;
-        }).toList();
+        final allDocs = snapshot.docs;
 
-        // STEP 2: TRACKER (Lock-on Logic)
-
-        if (_lockedDriverId != null) {
-           final lockedDoc = wardDocs.where((d) => d.id == _lockedDriverId).firstOrNull;
+        if (lockedId != null) {
+           final lockedDoc = allDocs.where((d) => d.id == lockedId).firstOrNull;
            if (lockedDoc != null) {
-              final data = lockedDoc.data();
-              bool isActive = false;
-              if (data.containsKey('dutySession') && data['dutySession'] is Map) {
-                 isActive = data['dutySession']['isActive'] ?? false;
-              }
-              
-              double dLat = 0.0, dLng = 0.0;
-               if (data.containsKey('currentLocation') && data['currentLocation'] is Map) {
-                  final loc = data['currentLocation'] as Map<String, dynamic>;
-                  dLat = (loc['latitude'] ?? 0.0).toDouble();
-                  dLng = (loc['longitude'] ?? 0.0).toDouble();
-               } else {
-                  dLat = (data['latitude'] ?? 0.0).toDouble();
-                  dLng = (data['longitude'] ?? 0.0).toDouble();
-               }
-
-              double dist = Geolocator.distanceBetween(
-                 _userLocation.latitude, _userLocation.longitude, dLat, dLng);
-
-              if (!isActive || dist > kExitRadius) {
-                 // Release
-                 if (mounted) setState(() => _lockedDriverId = null);
-              } else {
-                 // Keep
-                 activeDriverData = data;
-              }
-           } else {
-              if (mounted) setState(() => _lockedDriverId = null);
+              targetDriverData = lockedDoc.data();
+           } else if (!_trackingService.isManual) {
+              _trackingService.selectDriver(null);
            }
         }
 
-        if (_lockedDriverId == null) {
+        if (targetDriverData == null && !_trackingService.isManual) {
            double minDistance = double.infinity;
-           Map<String, dynamic>? closestDriver;
            String? closestId;
-
-           for (var doc in wardDocs) {
+           for (var doc in allDocs) {
               final data = doc.data();
-              bool isActive = false;
-              if (data.containsKey('dutySession') && data['dutySession'] is Map) {
-                 isActive = data['dutySession']['isActive'] ?? false;
-              }
-
-              if (isActive) {
-                 double dLat = 0.0, dLng = 0.0;
-                 if (data.containsKey('currentLocation') && data['currentLocation'] is Map) {
-                    final loc = data['currentLocation'] as Map<String, dynamic>;
-                    dLat = (loc['latitude'] ?? 0.0).toDouble();
-                    dLng = (loc['longitude'] ?? 0.0).toDouble();
-                 } else {
-                    dLat = (data['latitude'] ?? 0.0).toDouble();
-                    dLng = (data['longitude'] ?? 0.0).toDouble();
-                 }
-
-                 if (dLat != 0 && dLng != 0) {
-                   double dist = Geolocator.distanceBetween(
-                     _userLocation.latitude, _userLocation.longitude, dLat, dLng);
-                   
+              if ((data['ward']?.toString() ?? "Default") == _userWard && (data['dutySession']?['isActive'] ?? false)) {
+                 double dLat = (data['currentLocation']?['latitude'] ?? data['latitude'] ?? 0.0).toDouble();
+                 double dLng = (data['currentLocation']?['longitude'] ?? data['longitude'] ?? 0.0).toDouble();
+                 if (dLat != 0) {
+                   double dist = Geolocator.distanceBetween(_userLocation.latitude, _userLocation.longitude, dLat, dLng);
                    if (dist < kEnterRadius && dist < minDistance) {
                      minDistance = dist;
-                     closestDriver = data;
+                     targetDriverData = data;
                      closestId = doc.id;
                    }
                  }
               }
            }
-
-           if (closestDriver != null && closestId != null) {
-              activeDriverData = closestDriver;
-              if (mounted) setState(() => _lockedDriverId = closestId);
-           }
+           if (closestId != null) _trackingService.selectDriver(closestId);
         }
+      } catch (e) {}
 
-      } catch (e) {
-        debugPrint("Filter error: $e");
-      }
-
-      if (activeDriverData != null) {
-        final data = activeDriverData;
-        double lat = 0.0;
-        double lng = 0.0;
-
-        // Check for 'currentLocation' map first (preferred structure)
-        if (data.containsKey('currentLocation') && data['currentLocation'] is Map) {
-          final loc = data['currentLocation'] as Map<String, dynamic>;
-          lat = (loc['latitude'] ?? 0.0).toDouble();
-          lng = (loc['longitude'] ?? 0.0).toDouble();
-        } 
-        // Fallback to root level fields
-        else if (data.containsKey('latitude') && data.containsKey('longitude')) {
-          lat = (data['latitude'] ?? 0.0).toDouble();
-          lng = (data['longitude'] ?? 0.0).toDouble();
-        }
-
-        if (lat != 0.0 && lng != 0.0) {
-          final newTruckPos = LatLng(lat, lng);
-          
-          // Extract name logic
-          String fetchedName = "Waste Truck";
-          if (data.containsKey('vehicleId')) {
-             fetchedName = data['vehicleId'].toString();
-          } else if (data.containsKey('name')) {
-             fetchedName = data['name'].toString();
-          } else if (data.containsKey('driverId')) {
-             fetchedName = "Truck ${data['driverId']}";
-          }
-
+      if (targetDriverData != null) {
+        double lat = (targetDriverData!['currentLocation']?['latitude'] ?? targetDriverData!['latitude'] ?? 0.0).toDouble();
+        double lng = (targetDriverData!['currentLocation']?['longitude'] ?? targetDriverData!['longitude'] ?? 0.0).toDouble();
+        if (lat != 0.0) {
           if (mounted) {
             setState(() {
-              _truckLocation = newTruckPos;
-              _truckName = fetchedName;
+              _truckLocation = LatLng(lat, lng);
+              _truckName = targetDriverData!['vehicleId']?.toString() ?? targetDriverData!['name']?.toString() ?? "Waste Truck";
             });
-            _checkGeofence();
+            _getAddressFromLatLng(lat, lng);
             _getRoute();
           }
         }
@@ -255,12 +170,20 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
+  Future<void> _getAddressFromLatLng(double lat, double lng) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
+      if (placemarks.isNotEmpty) {
+        Placemark p = placemarks[0];
+        if (mounted) setState(() => _truckAddress = "${p.street}, ${p.subLocality}");
+      }
+    } catch (e) {}
+  }
+
   Future<void> _getRoute() async {
     const apiKey = 'AIzaSyDerIF4uqPd7nqWta1wP_6pCIRVDdXQ6VQ'; 
     try {
-      String url =
-          'https://maps.googleapis.com/maps/api/directions/json?origin=${_userLocation.latitude},${_userLocation.longitude}&destination=${_truckLocation.latitude},${_truckLocation.longitude}&key=$apiKey';
-
+      String url = 'https://maps.googleapis.com/maps/api/directions/json?origin=${_userLocation.latitude},${_userLocation.longitude}&destination=${_truckLocation.latitude},${_truckLocation.longitude}&key=$apiKey';
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
@@ -269,52 +192,90 @@ class _MapScreenState extends State<MapScreen> {
           PolylinePoints polylinePoints = PolylinePoints();
           List<PointLatLng> result = polylinePoints.decodePolyline(points);
           polylineCoordinates.clear();
-          for (var point in result) {
-            polylineCoordinates.add(LatLng(point.latitude, point.longitude));
-          }
+          for (var point in result) polylineCoordinates.add(LatLng(point.latitude, point.longitude));
           if (mounted) {
             setState(() {
               _polylines = {
                 Polyline(
                   polylineId: const PolylineId("route"),
                   points: polylineCoordinates,
-                  color: Colors.black,
-                  width: 4,
+                  color: const Color(0xFF1A73E8),
+                  width: 5,
+                  startCap: Cap.roundCap,
+                  endCap: Cap.roundCap,
                 ),
               };
             });
           }
         }
       }
-    } catch (e) {
-      debugPrint('Error getting route: $e');
-    }
+    } catch (e) {}
   }
 
-  void _checkGeofence() {
-    double distance = Geolocator.distanceBetween(
-      _userLocation.latitude, _userLocation.longitude,
-      _truckLocation.latitude, _truckLocation.longitude,
+  void _updateCameraView() {
+    if (_mapController == null) return;
+    LatLngBounds bounds = LatLngBounds(
+      southwest: LatLng(
+        _userLocation.latitude < _truckLocation.latitude ? _userLocation.latitude : _truckLocation.latitude,
+        _userLocation.longitude < _truckLocation.longitude ? _userLocation.longitude : _truckLocation.longitude,
+      ),
+      northeast: LatLng(
+        _userLocation.latitude > _truckLocation.latitude ? _userLocation.latitude : _truckLocation.latitude,
+        _userLocation.longitude > _truckLocation.longitude ? _userLocation.longitude : _truckLocation.longitude,
+      ),
     );
-    if (distance <= geofenceRadius && !isTruckInsideGeofence) {
-      isTruckInsideGeofence = true;
-      _showNotification("🚛 Truck has entered your area!");
-    } else if (distance > geofenceRadius && isTruckInsideGeofence) {
-      isTruckInsideGeofence = false;
-      _showNotification("🚛 Truck has left your area.");
-    }
+    _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
   }
 
-  void _showNotification(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
-    }
-  }
+  void _showDriversBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 24), decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            const Text("Trucks in Your Ward", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('drivers').where('ward', isEqualTo: _userWard).snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                final docs = snapshot.data!.docs;
+                if (docs.isEmpty) return const Padding(padding: EdgeInsets.all(32), child: Text("No trucks registered in this ward."));
 
-  Future<double> _getDistance() async {
-    return Geolocator.distanceBetween(
-      _userLocation.latitude, _userLocation.longitude,
-      _truckLocation.latitude, _truckLocation.longitude,
+                return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: docs.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data() as Map<String, dynamic>;
+                    final bool isActive = data['dutySession']?['isActive'] ?? false;
+                    final String name = data['vehicleId'] ?? data['driverId'] ?? data['name'] ?? "Truck ${index + 1}";
+                    final bool isSelected = _trackingService.selectedDriverId == docs[index].id;
+
+                    return ListTile(
+                      leading: Icon(Icons.local_shipping_rounded, color: isActive ? Colors.green : Colors.grey),
+                      title: Text(name, style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? Colors.green : Colors.black)),
+                      subtitle: Text(isActive ? "Active" : "Offline"),
+                      trailing: isSelected ? const Icon(Icons.check_circle, color: Colors.green) : null,
+                      onTap: () {
+                        _trackingService.selectDriver(docs[index].id, manual: true);
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -322,6 +283,7 @@ class _MapScreenState extends State<MapScreen> {
   void dispose() {
     _truckSubscription?.cancel();
     _userPosSubscription?.cancel();
+    _trackingSubscription?.cancel();
     super.dispose();
   }
 
@@ -334,185 +296,127 @@ class _MapScreenState extends State<MapScreen> {
             initialCameraPosition: CameraPosition(target: _userLocation, zoom: 15),
             markers: {
               Marker(
-                markerId: const MarkerId("user"),
+                markerId: const MarkerId("source"),
                 position: _userLocation,
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-                infoWindow: const InfoWindow(title: "Your Location"),
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                anchor: const Offset(0.5, 1.0), 
+                infoWindow: const InfoWindow(title: "My Location"),
               ),
               Marker(
-                markerId: const MarkerId("truck"),
+                markerId: const MarkerId("destination"),
                 position: _truckLocation,
-                // Using a greener marker for the truck
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen), 
-                infoWindow: InfoWindow(title: _truckName),
+                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                anchor: const Offset(0.5, 1.0),
+                infoWindow: InfoWindow(title: _truckName, snippet: _truckAddress),
               ),
             },
             polylines: _polylines,
-            circles: {
-              Circle(
-                circleId: const CircleId("geofence"),
-                center: _userLocation, // Geofence around user
-                radius: geofenceRadius,
-                strokeColor: Colors.transparent,
-                strokeWidth: 0,
-                fillColor: const Color(0xFF00C853).withOpacity(0.1),
-              ),
+            onMapCreated: (c) {
+              _mapController = c;
+              c.setMapStyle(_mapStyle); // RESTORED UBER STYLE
+              _updateCameraView();
             },
-            onMapCreated: (GoogleMapController controller) {
-              _mapController = controller;
-              controller.setMapStyle(_mapStyle);
-            },
-            myLocationEnabled: false,
+            myLocationEnabled: true,
             myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
+            zoomControlsEnabled: true,
+            zoomGesturesEnabled: true,
+            scrollGesturesEnabled: true,
+            tiltGesturesEnabled: true,
+            rotateGesturesEnabled: true,
           ),
           
           Positioned(
-            top: 50,
-            left: 20,
-            child: _buildTopHeader(),
+            top: 50, left: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)]),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18), onPressed: () => Navigator.pop(context)),
+                  const SizedBox(width: 8),
+                  const Text("LIVE TRACKING", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                ],
+              ),
+            ),
           ),
           
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _buildBottomPanel(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4)),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircleAvatar(
-            radius: 18,
-            backgroundColor: Color(0xFF00C853),
-            child: Icon(Icons.person_rounded, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 10),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("Current Location", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              Text("Home Address", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(width: 15),
-          IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black, size: 18),
-            onPressed: () => Navigator.of(context).pop(),
-            constraints: const BoxConstraints(),
-            padding: EdgeInsets.zero,
-          ),
+          Positioned(bottom: 0, left: 0, right: 0, child: _buildBottomPanel()),
         ],
       ),
     );
   }
 
   Widget _buildBottomPanel() {
-    return FutureBuilder<double>(
-      future: _getDistance(),
-      builder: (context, snapshot) {
-        String etaText = "LOCATING...";
-        String distanceText = "";
-        if (snapshot.hasData) {
-          double distance = snapshot.data!;
-          int minutes = (distance / 400).ceil();
-          etaText = "ARRIVING IN ${minutes < 1 ? 1 : minutes} MIN";
-          distanceText = distance < 1000 ? "${distance.toInt()}m" : "${(distance / 1000).toStringAsFixed(1)}km";
-        }
+    double dist = Geolocator.distanceBetween(_userLocation.latitude, _userLocation.longitude, _truckLocation.latitude, _truckLocation.longitude);
+    String etaText = "LOCATING...";
+    String distanceText = "";
+    if (_truckName != "Locating...") {
+      int mins = (dist / 400).ceil();
+      etaText = "${mins < 1 ? 1 : mins} min";
+      distanceText = "(${dist < 1000 ? "${dist.toInt()} m" : "${(dist / 1000).toStringAsFixed(1)} km"})";
+    }
 
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20)],
-          ),
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    return Container(
+      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(32)), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20)]),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+          Row(
             children: [
               Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(20)),
+                child: const Icon(Icons.local_shipping_rounded, size: 32, color: Color(0xFF00C853)),
               ),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(20)),
-                    child: const Icon(Icons.local_shipping_rounded, size: 32, color: Color(0xFF00C853)),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Text(etaText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF00C853))),
-                        Text("$_truckName • $distanceText away", style: TextStyle(color: Colors.grey[600], fontSize: 14, fontWeight: FontWeight.w600)),
+                        Text(etaText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.green)),
+                        const SizedBox(width: 8),
+                        Text(distanceText, style: const TextStyle(fontSize: 16, color: Colors.grey)),
                       ],
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () => launchUrl(Uri.parse("tel:+1234567890")),
-                    icon: const Icon(Icons.call_rounded, color: Colors.black),
-                    style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFFF2F2F7),
-                      padding: const EdgeInsets.all(12),
-                    ),
-                  ),
-                ],
+                    Text(_truckAddress, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                    Text(_truckName, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
               ),
-              const SizedBox(height: 24),
+              IconButton(onPressed: _showDriversBottomSheet, icon: const Icon(Icons.list_alt_rounded)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _updateCameraView,
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00C853), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                    child: const Text("Recenter View", style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
               SizedBox(
-                width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () => _getRoute(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00C853),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
-                  child: const Text("Refresh Live Route", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  onPressed: () => launchUrl(Uri.parse("tel:+911234567890")),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF2F2F7), foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                  child: const Icon(Icons.call_rounded),
                 ),
               ),
             ],
           ),
-        );
-      },
+        ],
+      ),
     );
-  }
-  bool _isLocationNearPolyline(LatLng userPos, List<dynamic> points) {
-    // Reusing the logic from TruckEtaWidget
-    const double kRouteBuffer = 500.0;
-    for (var p in points) {
-      if (p is Map) {
-        double pLat = (p['latitude'] ?? 0.0).toDouble();
-        double pLng = (p['longitude'] ?? 0.0).toDouble();
-        double dist = Geolocator.distanceBetween(userPos.latitude, userPos.longitude, pLat, pLng);
-        if (dist < kRouteBuffer) return true;
-      } else if (p is GeoPoint) {
-         double dist = Geolocator.distanceBetween(userPos.latitude, userPos.longitude, p.latitude, p.longitude);
-         if (dist < kRouteBuffer) return true;
-      }
-    }
-    return false;
   }
 }

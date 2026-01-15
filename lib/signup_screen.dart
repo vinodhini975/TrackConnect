@@ -27,6 +27,10 @@ class _SignupScreenState extends State<SignupScreen> {
       _showError("Please fill in all fields");
       return;
     }
+    if (_passwordController.text.length < 6) {
+      _showError("Password must be at least 6 characters");
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -34,8 +38,26 @@ class _SignupScreenState extends State<SignupScreen> {
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
+      if (mounted) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                const Expanded(child: Text('Account created successfully!', style: TextStyle(fontWeight: FontWeight.w500))),
+              ],
+            ),
+            backgroundColor: const Color(0xFF00C853),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
     } catch (e) {
-      _showError(e.toString());
+      if (mounted) _showError(e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -44,10 +66,27 @@ class _SignupScreenState extends State<SignupScreen> {
   void _loginWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      await _authService.signInWithGoogle(isSignUp: true);
-      if (mounted) Navigator.pop(context); // Go back if successful (handled by StreamBuilder)
+      final result = await _authService.signInWithGoogle(isSignUp: true);
+      if (result != null && mounted) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                const Expanded(child: Text('Signed up with Google successfully!', style: TextStyle(fontWeight: FontWeight.w500))),
+              ],
+            ),
+            backgroundColor: const Color(0xFF00C853),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
     } catch (e) {
-      _showError(e.toString());
+      if (mounted) _showError(e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -56,7 +95,9 @@ class _SignupScreenState extends State<SignupScreen> {
   void _showError(dynamic error) {
     String message = "An unexpected error occurred. Please try again.";
     
-    if (error is FirebaseAuthException) {
+    if (error is String) {
+      message = error;
+    } else if (error is FirebaseAuthException) {
       switch (error.code) {
         case 'email-already-in-use':
           message = "This email is already registered. Try logging in.";
@@ -67,11 +108,21 @@ class _SignupScreenState extends State<SignupScreen> {
         case 'invalid-email':
           message = "Please enter a valid email address.";
           break;
+        case 'operation-not-allowed':
+          message = "Email/password accounts are not enabled. Please contact support.";
+          break;
+        case 'network-request-failed':
+          message = "Network error. Please check your connection.";
+          break;
         default:
-          message = error.message ?? message;
+          message = error.message ?? "Authentication error: ${error.code}";
       }
+    } else {
+      message = error.toString();
     }
 
+    if (!mounted) return;
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -85,6 +136,7 @@ class _SignupScreenState extends State<SignupScreen> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
       ),
     );
   }

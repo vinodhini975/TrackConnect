@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,10 +41,19 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
   Future<void> _getCurrentLocation() async {
     try {
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low);
+      // Check permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        return; // Don't request here, wait for user to click Track
+      }
+      
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.low,
+        timeLimit: const Duration(seconds: 5),
+      );
       if (mounted) setState(() => _userPosition = position);
     } catch (e) {
-      print("Could not get user position for ETA: $e");
+      debugPrint("Could not get user position for ETA: $e");
     }
   }
   
@@ -59,15 +69,49 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     setState(() => _isLoading = true);
     
     try {
-      // Add slight delay as requested
-      await Future.delayed(const Duration(milliseconds: 1));
-      
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      if (mounted) {
-        Navigator.of(context).push(MaterialPageRoute(builder: (context) => MapScreen(userLocation: position)));
+      // Check location permission first
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _showError('Location permission is required to track trucks');
+          return;
+        }
       }
+      
+      if (permission == LocationPermission.deniedForever) {
+        _showError('Location permission is permanently denied. Please enable it in settings.');
+        return;
+      }
+      
+      // Check if location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _showError('Please enable location services to track trucks');
+        return;
+      }
+      
+      // Add slight delay as requested
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+      
+      if (mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => MapScreen(userLocation: position)
+          )
+        );
+      }
+    } on TimeoutException catch (_) {
+      _showError('Location timeout. Please try again.');
+    } on PermissionDeniedException catch (_) {
+      _showError('Location permission denied.');
     } catch (e) {
-      _showError('Failed to get location: $e');
+      _showError('Failed to get location: ${e.toString()}');
     } finally {
       if (mounted) setState(() => _isLoading = false);
       _isNavigating = false;
@@ -75,7 +119,23 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
   
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.redAccent));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message, style: const TextStyle(fontWeight: FontWeight.w500))),
+          ],
+        ),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
   
   void _showScreen(Widget screen) async {

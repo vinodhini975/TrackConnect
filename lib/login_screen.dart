@@ -41,9 +41,14 @@ class _LoginScreenState extends State<LoginScreen> {
   void _loginWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      await _authService.signInWithGoogle(isSignUp: false);
+      final result = await _authService.signInWithGoogle(isSignUp: false);
+      if (result == null) {
+        // User cancelled, don't show error
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
     } catch (e) {
-      _showError(e.toString());
+      if (mounted) _showError(e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -52,7 +57,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showError(dynamic error) {
     String message = "An unexpected error occurred. Please try again.";
     
-    if (error is FirebaseAuthException) {
+    if (error is String) {
+      message = error;
+    } else if (error is FirebaseAuthException) {
       switch (error.code) {
         case 'user-not-found':
           message = "No account found with this email. Have you signed up yet?";
@@ -66,15 +73,32 @@ class _LoginScreenState extends State<LoginScreen> {
         case 'user-disabled':
           message = "This account has been disabled. Contact support.";
           break;
+        case 'google-sign-in-failed':
+          message = "Google Sign-In failed. Please try again.";
+          break;
+        case 'missing-auth-token':
+          message = "Authentication failed. Please try again.";
+          break;
+        case 'network-request-failed':
+          message = "Network error. Please check your connection.";
+          break;
         default:
-          message = error.message ?? message;
+          message = error.message ?? "Authentication error: ${error.code}";
       }
     } else if (error is PlatformException) {
       if (error.code == 'network_error') {
         message = "Please check your internet connection.";
+      } else if (error.code == 'sign_in_failed') {
+        message = "Google Sign-In was cancelled or failed.";
+      } else {
+        message = error.message ?? "An error occurred: ${error.code}";
       }
+    } else {
+      message = error.toString();
     }
 
+    if (!mounted) return;
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -88,6 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
