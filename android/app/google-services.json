@@ -92,6 +92,42 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:655828864389:android:a973bbd5a9f276670f48ec",
+        "android_client_info": {
+          "package_name": "com.example.waste_tracker"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "655828864389-ccoc2ndhsg0ggmevmob0bh0al1tgmg3l.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAreWOFRIaf51iUQttIZa1I75cCRh9siIY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "655828864389-ccoc2ndhsg0ggmevmob0bh0al1tgmg3l.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "655828864389-abdk2h3i44pq485q2q4coipdmml671pp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.trackconnect"
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"

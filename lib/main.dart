@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+<<<<<<< Updated upstream
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'auth_service.dart';
 import 'dashboard_screen.dart';
+=======
+>>>>>>> Stashed changes
 import 'login_screen.dart';
 import 'notification_service.dart';
 
@@ -27,14 +30,26 @@ void main() async {
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  static _MyAppState? of(BuildContext context) =>
-      context.findAncestorStateOfType<_MyAppState>();
+  static MyAppState? of(BuildContext context) =>
+      context.findAncestorStateOfType<MyAppState>();
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  State<MyApp> createState() => MyAppState();
 }
 
+<<<<<<< Updated upstream
 class _MyAppState extends State<MyApp> {
+=======
+class MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+
+  void toggleTheme(bool isDark) {
+    setState(() {
+      _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
+
+>>>>>>> Stashed changes
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -93,6 +108,10 @@ class _MyAppState extends State<MyApp> {
           return const LoginScreen();
         },
       ),
+<<<<<<< Updated upstream
+=======
+      home: const LoginScreen(),
+>>>>>>> Stashed changes
     );
   }
 }

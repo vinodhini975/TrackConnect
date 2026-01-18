@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
+import 'manual_signup.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class UserLoginScreen extends StatefulWidget {
+  const UserLoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<UserLoginScreen> createState() => _UserLoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _UserLoginScreenState extends State<UserLoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
 
   void _login() async {
     setState(() => _isLoading = true);
-    
+
     // Simulate API call
     await Future.delayed(const Duration(seconds: 2));
 
@@ -27,9 +28,26 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _googleSignUp() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Google Sign-Up is coming soon!")),
+    );
+  }
+
+  void _manualSignUp() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ManualSignupScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("User Login"),
+        backgroundColor: Colors.green[700],
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -42,10 +60,10 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.local_shipping, size: 80, color: Colors.green[700]),
+            Icon(Icons.person, size: 80, color: Colors.green[700]),
             const SizedBox(height: 20),
             Text(
-              "Waste Tracker",
+              "User Login",
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -85,6 +103,37 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text("LOGIN", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text("New user? Sign up below"),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: _googleSignUp,
+                icon: const Icon(Icons.g_mobiledata), // Placeholder for Google icon
+                label: const Text("Sign up with Google"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _manualSignUp,
+                child: const Text("Manual Sign-up"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueGrey[700],
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ),
           ],

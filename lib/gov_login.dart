@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class GovLoginScreen extends StatefulWidget {
+  const GovLoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<GovLoginScreen> createState() => _GovLoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _GovLoginScreenState extends State<GovLoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
@@ -30,6 +30,10 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("Government Login"),
+        backgroundColor: Colors.green[700],
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -42,10 +46,10 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.local_shipping, size: 80, color: Colors.green[700]),
+            Icon(Icons.gavel, size: 80, color: Colors.green[700]),
             const SizedBox(height: 20),
             Text(
-              "Waste Tracker",
+              "Government Login",
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
