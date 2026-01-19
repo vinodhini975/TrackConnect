@@ -55,6 +55,8 @@ class _SignupScreenState extends State<SignupScreen> {
             margin: const EdgeInsets.all(16),
           ),
         );
+        // Return to the main screen where StreamBuilder will show Dashboard
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) _showError(e);
@@ -84,6 +86,8 @@ class _SignupScreenState extends State<SignupScreen> {
             margin: const EdgeInsets.all(16),
           ),
         );
+        // Return to the main screen where StreamBuilder will show Dashboard
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) _showError(e);

@@ -23,7 +23,8 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
   late LatLng _userLocation;
-  LatLng _truckLocation = const LatLng(13.960178, 75.510884);
+  LatLng _truckLocation = const LatLng(0, 0); 
+  bool _hasTruckData = false;
   String _truckName = "Locating..."; 
   String _truckAddress = "Fetching address...";
   StreamSubscription? _truckSubscription;
@@ -105,10 +106,13 @@ class _MapScreenState extends State<MapScreen> {
     _userPosSubscription = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 5),
     ).listen((Position position) {
+      if (position.latitude == 0 && position.longitude == 0) return; // Ignore Africa location
+      
       LatLng newPosition = LatLng(position.latitude, position.longitude);
       if (mounted) {
         setState(() => _userLocation = newPosition);
         _getRoute();
+        _updateCameraView();
       }
     });
   }
@@ -156,14 +160,18 @@ class _MapScreenState extends State<MapScreen> {
       if (targetDriverData != null) {
         double lat = (targetDriverData!['currentLocation']?['latitude'] ?? targetDriverData!['latitude'] ?? 0.0).toDouble();
         double lng = (targetDriverData!['currentLocation']?['longitude'] ?? targetDriverData!['longitude'] ?? 0.0).toDouble();
-        if (lat != 0.0) {
+        
+        // Stricter check: must not be 0,0 and must be a valid non-empty coordinate
+        if (lat != 0.0 && lng != 0.0) {
           if (mounted) {
             setState(() {
               _truckLocation = LatLng(lat, lng);
+              _hasTruckData = true;
               _truckName = targetDriverData!['vehicleId']?.toString() ?? targetDriverData!['name']?.toString() ?? "Waste Truck";
             });
             _getAddressFromLatLng(lat, lng);
             _getRoute();
+            _updateCameraView(); // Auto-update camera when truck moves
           }
         }
       }
@@ -181,6 +189,8 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _getRoute() async {
+    if (_truckLocation.latitude == 0 || _truckLocation.longitude == 0) return;
+    
     const apiKey = 'AIzaSyDerIF4uqPd7nqWta1wP_6pCIRVDdXQ6VQ'; 
     try {
       String url = 'https://maps.googleapis.com/maps/api/directions/json?origin=${_userLocation.latitude},${_userLocation.longitude}&destination=${_truckLocation.latitude},${_truckLocation.longitude}&key=$apiKey';
@@ -212,19 +222,49 @@ class _MapScreenState extends State<MapScreen> {
     } catch (e) {}
   }
 
-  void _updateCameraView() {
+  bool _userMovedMap = false;
+  bool _isProgrammaticMove = false;
+
+  void _updateCameraView({bool force = false}) {
     if (_mapController == null) return;
-    LatLngBounds bounds = LatLngBounds(
-      southwest: LatLng(
-        _userLocation.latitude < _truckLocation.latitude ? _userLocation.latitude : _truckLocation.latitude,
-        _userLocation.longitude < _truckLocation.longitude ? _userLocation.longitude : _truckLocation.longitude,
-      ),
-      northeast: LatLng(
-        _userLocation.latitude > _truckLocation.latitude ? _userLocation.latitude : _truckLocation.latitude,
-        _userLocation.longitude > _truckLocation.longitude ? _userLocation.longitude : _truckLocation.longitude,
-      ),
-    );
-    _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+    if (!force && _userMovedMap) return; // Don't snap camera if user is exploring
+
+    bool hasUser = true; // We always have user from initState now
+    bool hasTruck = _hasTruckData && _truckLocation.latitude != 0 && _truckLocation.longitude != 0;
+
+    // If we don't have truck data yet, just stay on user
+    if (!hasTruck) {
+      _isProgrammaticMove = true;
+      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_userLocation, 15));
+      return;
+    }
+
+    if (hasUser && hasTruck) {
+      // Calculate bounds
+      LatLngBounds bounds = LatLngBounds(
+        southwest: LatLng(
+          _userLocation.latitude < _truckLocation.latitude ? _userLocation.latitude : _truckLocation.latitude,
+          _userLocation.longitude < _truckLocation.longitude ? _userLocation.longitude : _truckLocation.longitude,
+        ),
+        northeast: LatLng(
+          _userLocation.latitude > _truckLocation.latitude ? _userLocation.latitude : _truckLocation.latitude,
+          _userLocation.longitude > _truckLocation.longitude ? _userLocation.longitude : _truckLocation.longitude,
+        ),
+      );
+      
+      // Check if positions are too close to create valid bounds
+      double distance = Geolocator.distanceBetween(
+        _userLocation.latitude, _userLocation.longitude,
+        _truckLocation.latitude, _truckLocation.longitude
+      );
+
+      _isProgrammaticMove = true;
+      if (distance < 50) {
+        _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_userLocation, 16));
+      } else {
+        _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+      }
+    }
   }
 
   void _showDriversBottomSheet() {
@@ -293,29 +333,43 @@ class _MapScreenState extends State<MapScreen> {
       body: Stack(
         children: [
           GoogleMap(
-            initialCameraPosition: CameraPosition(target: _userLocation, zoom: 15),
+            initialCameraPosition: CameraPosition(
+              target: LatLng(widget.userLocation.latitude, widget.userLocation.longitude), 
+              zoom: 15
+            ),
             markers: {
-              Marker(
-                markerId: const MarkerId("source"),
-                position: _userLocation,
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-                anchor: const Offset(0.5, 1.0), 
-                infoWindow: const InfoWindow(title: "My Location"),
-              ),
-              Marker(
-                markerId: const MarkerId("destination"),
-                position: _truckLocation,
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-                anchor: const Offset(0.5, 1.0),
-                infoWindow: InfoWindow(title: _truckName, snippet: _truckAddress),
-              ),
+              if (_userLocation.latitude != 0 && _userLocation.longitude != 0)
+                Marker(
+                  markerId: const MarkerId("source"),
+                  position: _userLocation,
+                  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                  anchor: const Offset(0.5, 1.0), 
+                  infoWindow: const InfoWindow(title: "My Location"),
+                ),
+              if (_truckLocation.latitude != 0 && _truckLocation.longitude != 0)
+                Marker(
+                  markerId: const MarkerId("destination"),
+                  position: _truckLocation,
+                  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+                  anchor: const Offset(0.5, 1.0),
+                  infoWindow: InfoWindow(title: _truckName, snippet: _truckAddress),
+                ),
             },
             polylines: _polylines,
             onMapCreated: (c) {
               _mapController = c;
-              c.setMapStyle(_mapStyle); // RESTORED UBER STYLE
-              _updateCameraView();
+              c.setMapStyle(_mapStyle);
+              _updateCameraView(force: true);
             },
+            onCameraMoveStarted: () {
+              if (!_isProgrammaticMove) {
+                setState(() => _userMovedMap = true);
+              }
+            },
+            onCameraIdle: () {
+              _isProgrammaticMove = false;
+            },
+            onTap: (_) => setState(() => _userMovedMap = true),
             myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: true,
@@ -348,10 +402,12 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Widget _buildBottomPanel() {
-    double dist = Geolocator.distanceBetween(_userLocation.latitude, _userLocation.longitude, _truckLocation.latitude, _truckLocation.longitude);
+    bool isTruckValid = _truckLocation.latitude != 0 && _truckLocation.longitude != 0;
     String etaText = "LOCATING...";
     String distanceText = "";
-    if (_truckName != "Locating...") {
+    
+    if (isTruckValid && _truckName != "Locating...") {
+      double dist = Geolocator.distanceBetween(_userLocation.latitude, _userLocation.longitude, _truckLocation.latitude, _truckLocation.longitude);
       int mins = (dist / 400).ceil();
       etaText = "${mins < 1 ? 1 : mins} min";
       distanceText = "(${dist < 1000 ? "${dist.toInt()} m" : "${(dist / 1000).toStringAsFixed(1)} km"})";
@@ -398,7 +454,10 @@ class _MapScreenState extends State<MapScreen> {
                 child: SizedBox(
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _updateCameraView,
+                    onPressed: () {
+                      setState(() => _userMovedMap = false);
+                      _updateCameraView(force: true);
+                    },
                     style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00C853), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
                     child: const Text("Recenter View", style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
