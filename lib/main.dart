@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-<<<<<<< Updated upstream
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'auth_service.dart';
 import 'dashboard_screen.dart';
-=======
->>>>>>> Stashed changes
 import 'login_screen.dart';
 import 'notification_service.dart';
 
@@ -37,9 +34,6 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => MyAppState();
 }
 
-<<<<<<< Updated upstream
-class _MyAppState extends State<MyApp> {
-=======
 class MyAppState extends State<MyApp> {
   ThemeMode _themeMode = ThemeMode.light;
 
@@ -49,13 +43,12 @@ class MyAppState extends State<MyApp> {
     });
   }
 
->>>>>>> Stashed changes
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Waste Tracker',
-      themeMode: ThemeMode.light,
+      themeMode: _themeMode,
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
@@ -108,10 +101,6 @@ class MyAppState extends State<MyApp> {
           return const LoginScreen();
         },
       ),
-<<<<<<< Updated upstream
-=======
-      home: const LoginScreen(),
->>>>>>> Stashed changes
     );
   }
 }
