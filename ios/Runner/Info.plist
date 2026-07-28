@@ -51,11 +51,26 @@
 	<string>We need your location to track the waste collection vehicle.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>We need your location to provide real-time tracking of waste collection vehicles.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>We need your location to track waste collection vehicles in real-time, even when the app is in the background.</string>
 
 	<!-- Enable background location updates -->
 	<key>UIBackgroundModes</key>
 	<array>
 	    <string>location</string>
+	</array>
+
+	<!-- Google Sign-In URL Scheme -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.655828864389-d81qc6fboh8bnr0ppb1raops112770cv</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

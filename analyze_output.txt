@@ -1,0 +1,26 @@
+﻿Analyzing TrackConnect...                                       
+
+   info - Don't invoke 'print' in production code - fix_lint.dart:42:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:12:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:21:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:31:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:42:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:52:7 - avoid_print
+warning - Unused import: 'package:firebase_auth/firebase_auth.dart' - lib\dashboard_screen.dart:2:8 - unused_import
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:61:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:69:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:75:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:106:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:113:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:117:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:118:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:136:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:154:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:157:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:13:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:25:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:36:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:46:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:57:7 - avoid_print
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\profile_screen.dart:199:25 - deprecated_member_use
+

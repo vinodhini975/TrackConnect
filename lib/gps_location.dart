@@ -2,23 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'dart:async'; // Add timer import
-import 'platform_service.dart';
+import 'dart:async';
 
 class GPSLocation extends StatefulWidget {
+  const GPSLocation({super.key});
+
   @override
-  _GPSLocationState createState() => _GPSLocationState();
+  State<GPSLocation> createState() => _GPSLocationState();
 }
 
 class _GPSLocationState extends State<GPSLocation> {
   GoogleMapController? _mapController;
   LatLng? _currentLocation;
-  double _geofenceRadius = 10.0; // 10 meters
+  final double _geofenceRadius = 50.0; // 50 meters
   late FlutterLocalNotificationsPlugin _notificationsPlugin;
-  Timer? _locationUpdateTimer; // Store reference to timer to cancel when needed
+  Timer? _locationUpdateTimer;
 
-  Set<Polyline> _polylines = {}; // Stores the polyline
-  final LatLng wasteTruckLocation = LatLng(13.961046, 75.511070); // Truck location
+  final Set<Polyline> _polylines = {};
+  LatLng? _targetTruckLocation; // Removed hardcoded coordinates
 
   @override
   void initState() {
@@ -26,9 +27,7 @@ class _GPSLocationState extends State<GPSLocation> {
     _initNotifications();
     _getUserLocation();
 
-    // Set up a periodic location update
-    const oneSec = Duration(seconds: 10);
-    _locationUpdateTimer = Timer.periodic(oneSec, (Timer timer) {
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 10), (Timer timer) {
       if (mounted) {
         _getUserLocation();
       } else {
@@ -39,11 +38,10 @@ class _GPSLocationState extends State<GPSLocation> {
 
   @override
   void dispose() {
-    _locationUpdateTimer?.cancel(); // Cancel the timer when widget is disposed
+    _locationUpdateTimer?.cancel();
     super.dispose();
   }
 
-  /// Initialize Local Notifications
   void _initNotifications() {
     _notificationsPlugin = FlutterLocalNotificationsPlugin();
     const AndroidInitializationSettings androidInitSettings =
@@ -53,111 +51,75 @@ class _GPSLocationState extends State<GPSLocation> {
     _notificationsPlugin.initialize(initSettings);
   }
 
-  /// Get Current Location
   Future<void> _getUserLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      print("❌ Location services are disabled.");
-      return;
-    }
+    if (!serviceEnabled) return;
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        print("❌ Location permission denied.");
-        return;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      print("❌ Location permission permanently denied.");
-      return;
+      if (permission == LocationPermission.denied) return;
     }
 
     try {
-      // Get user's current position
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
 
-      // Set user's location
       if (mounted) {
         setState(() {
           _currentLocation = LatLng(position.latitude, position.longitude);
         });
 
-        // Move camera to current location
         if (_mapController != null && _currentLocation != null) {
           _mapController!.animateCamera(
             CameraUpdate.newLatLngZoom(_currentLocation!, 15),
           );
         }
 
-        // Draw polyline once we have the current location
-        if (_currentLocation != null) {
+        if (_currentLocation != null && _targetTruckLocation != null) {
           _drawPolyline();
+          _checkGeofence();
         }
-
-        _checkGeofence(); // Check geofence when location is updated
       }
     } catch (e) {
-      print("❌ Error getting location: $e");
+      debugPrint("Error getting location: $e");
     }
   }
 
-  /// Draw Polyline from User to Truck
   void _drawPolyline() {
-    if (_currentLocation == null) {
-      print("❌ Cannot draw polyline: Current location is NULL.");
-      return;
-    }
+    if (_currentLocation == null || _targetTruckLocation == null) return;
 
-    print("🔹 Drawing polyline from: ${_currentLocation!.latitude}, ${_currentLocation!.longitude}");
-    print("🔹 To: ${wasteTruckLocation.latitude}, ${wasteTruckLocation.longitude}");
-
-    // Make sure we're adding the polyline on the UI thread
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        setState(() {
-          _polylines.clear();
-          _polylines.add(
-            Polyline(
-              polylineId: PolylineId("route"),
-              visible: true,
-              points: [_currentLocation!, wasteTruckLocation],
-              color: Colors.red,
-              width: 8,
-              startCap: Cap.roundCap,
-              endCap: Cap.roundCap,
-            ),
-          );
-          print("✅ Polyline added: ${_polylines.length} polylines in set");
-        });
-      }
+    setState(() {
+      _polylines.clear();
+      _polylines.add(
+        Polyline(
+          polylineId: const PolylineId("route"),
+          points: [_currentLocation!, _targetTruckLocation!],
+          color: Colors.green,
+          width: 6,
+          startCap: Cap.roundCap,
+          endCap: Cap.roundCap,
+        ),
+      );
     });
   }
 
-  /// Check if the user is inside the geofence
   void _checkGeofence() {
-    if (_currentLocation == null) return;
+    if (_currentLocation == null || _targetTruckLocation == null) return;
 
     double distance = Geolocator.distanceBetween(
       _currentLocation!.latitude,
       _currentLocation!.longitude,
-      wasteTruckLocation.latitude,
-      wasteTruckLocation.longitude,
+      _targetTruckLocation!.latitude,
+      _targetTruckLocation!.longitude,
     );
 
     if (distance <= _geofenceRadius) {
-      print("🚛 Truck is near your location!");
       _showNotification("🚛 Waste Truck Alert", "A truck is near your location.");
-    } else {
-      print("🚛 Truck is far from your location: $distance meters away.");
     }
   }
 
-  /// Show Local Notification
   Future<void> _showNotification(String title, String body) async {
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'geofence_channel',
@@ -165,95 +127,38 @@ class _GPSLocationState extends State<GPSLocation> {
       importance: Importance.high,
       priority: Priority.high,
     );
-
-    const NotificationDetails platformDetails =
-    NotificationDetails(android: androidDetails);
-
+    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
     await _notificationsPlugin.show(0, title, body, platformDetails);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Waste Truck Tracker')),
+      appBar: AppBar(title: const Text('Waste Truck Tracker')),
       body: _currentLocation == null
-          ? Center(child: CircularProgressIndicator())
-          : Stack(
-        children: [
-          GoogleMap(
+          ? const Center(child: CircularProgressIndicator())
+          : GoogleMap(
             initialCameraPosition: CameraPosition(
               target: _currentLocation!,
               zoom: 15,
             ),
-            onMapCreated: (controller) {
-              setState(() {
-                _mapController = controller;
-              });
-              // Add a delay before drawing the polyline
-              Future.delayed(Duration(milliseconds: 500), () {
-                _drawPolyline();
-              });
-            },
+            onMapCreated: (controller) => _mapController = controller,
             markers: {
               Marker(
-                markerId: MarkerId("currentLocation"),
+                markerId: const MarkerId("currentLocation"),
                 position: _currentLocation!,
-                infoWindow: InfoWindow(title: "Your Location"),
+                infoWindow: const InfoWindow(title: "Your Location"),
               ),
-              Marker(
-                markerId: MarkerId("wasteTruckLocation"),
-                position: wasteTruckLocation,
-                infoWindow: InfoWindow(title: "Waste Truck"),
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                    BitmapDescriptor.hueBlue),
-              ),
-            },
-            polylines: _polylines, // Displays polyline
-            circles: {
-              Circle(
-                circleId: CircleId("geofenceRadius"),
-                center: wasteTruckLocation,
-                radius: _geofenceRadius,
-                fillColor: Colors.blue.withOpacity(0.3),
-                strokeWidth: 1,
-              ),
-            },
-          ),
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FloatingActionButton(
-                  heroTag: "refreshLocation",
-                  onPressed: () {
-                    _getUserLocation();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Refreshing location...')),
-                    );
-                  },
-                  child: Icon(Icons.my_location),
-                  tooltip: 'Get Current Location',
+              if (_targetTruckLocation != null)
+                Marker(
+                  markerId: const MarkerId("wasteTruckLocation"),
+                  position: _targetTruckLocation!,
+                  infoWindow: const InfoWindow(title: "Waste Truck"),
+                  icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
                 ),
-                SizedBox(height: 10),
-                FloatingActionButton(
-                  heroTag: "forceDrawPolyline",
-                  onPressed: () {
-                    _drawPolyline();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Drawing route to truck...')),
-                    );
-                  },
-                  child: Icon(Icons.route),
-                  tooltip: 'Draw Route to Truck',
-                  backgroundColor: Colors.green,
-                ),
-              ],
-            ),
+            },
+            polylines: _polylines,
           ),
-        ],
-      ),
     );
   }
 }

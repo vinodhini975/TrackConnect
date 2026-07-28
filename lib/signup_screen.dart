@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dashboard_screen.dart';
 import 'auth_service.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -12,6 +11,7 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
+  final TextEditingController _nameController = TextEditingController(); // Added missing controller
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
@@ -27,6 +27,10 @@ class _SignupScreenState extends State<SignupScreen> {
       _showError("Please fill in all fields");
       return;
     }
+    if (_passwordController.text.length < 6) {
+      _showError("Password must be at least 6 characters");
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -34,8 +38,28 @@ class _SignupScreenState extends State<SignupScreen> {
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
+      if (mounted) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                const Expanded(child: Text('Account created successfully!', style: TextStyle(fontWeight: FontWeight.w500))),
+              ],
+            ),
+            backgroundColor: const Color(0xFF00C853),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+        // Return to the main screen where StreamBuilder will show Dashboard
+        Navigator.pop(context);
+      }
     } catch (e) {
-      _showError(e.toString());
+      if (mounted) _showError(e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -44,10 +68,29 @@ class _SignupScreenState extends State<SignupScreen> {
   void _loginWithGoogle() async {
     setState(() => _isLoading = true);
     try {
-      await _authService.signInWithGoogle(isSignUp: true);
-      if (mounted) Navigator.pop(context); // Go back if successful (handled by StreamBuilder)
+      final result = await _authService.signInWithGoogle(isSignUp: true);
+      if (result != null && mounted) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                const Expanded(child: Text('Signed up with Google successfully!', style: TextStyle(fontWeight: FontWeight.w500))),
+              ],
+            ),
+            backgroundColor: const Color(0xFF00C853),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+        // Return to the main screen where StreamBuilder will show Dashboard
+        Navigator.pop(context);
+      }
     } catch (e) {
-      _showError(e.toString());
+      if (mounted) _showError(e);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -56,7 +99,9 @@ class _SignupScreenState extends State<SignupScreen> {
   void _showError(dynamic error) {
     String message = "An unexpected error occurred. Please try again.";
     
-    if (error is FirebaseAuthException) {
+    if (error is String) {
+      message = error;
+    } else if (error is FirebaseAuthException) {
       switch (error.code) {
         case 'email-already-in-use':
           message = "This email is already registered. Try logging in.";
@@ -67,11 +112,19 @@ class _SignupScreenState extends State<SignupScreen> {
         case 'invalid-email':
           message = "Please enter a valid email address.";
           break;
+        case 'operation-not-allowed':
+          message = "Email/password accounts are not enabled. Please contact support.";
+          break;
+        case 'network-request-failed':
+          message = "Network error. Please check your connection.";
+          break;
         default:
-          message = error.message ?? message;
+          message = error.message ?? error.toString();
       }
     }
 
+    if (!mounted) return;
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -85,6 +138,7 @@ class _SignupScreenState extends State<SignupScreen> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -117,59 +171,57 @@ class _SignupScreenState extends State<SignupScreen> {
               ),
               const SizedBox(height: 48),
               TextField(
-                controller: _emailController,
+                controller: _nameController,
                 decoration: InputDecoration(
-                  hintText: "Email",
-                  prefixIcon: const Icon(Icons.email_outlined),
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+                  hintText: "Full Name",
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Icon(Icons.person_outline_rounded, color: Colors.grey.shade600),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  hintText: "Email Address",
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Icon(Icons.email_outlined, color: Colors.grey.shade600),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
               TextField(
                 controller: _passwordController,
                 obscureText: true,
                 decoration: InputDecoration(
                   hintText: "Password",
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Icon(Icons.lock_outline_rounded, color: Colors.grey.shade600),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               TextField(
                 controller: _confirmPasswordController,
                 obscureText: true,
                 decoration: InputDecoration(
                   hintText: "Confirm Password",
-                  prefixIcon: const Icon(Icons.lock_reset_rounded),
-                  filled: true,
-                  fillColor: const Color(0xFFF5F5F7),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Icon(Icons.lock_reset_rounded, color: Colors.grey.shade600),
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
               SizedBox(
                 width: double.infinity,
                 height: 58,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _signup,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00C853),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                  ),
                   child: _isLoading
                       ? const Center(
                           child: SizedBox(
@@ -199,7 +251,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 height: 58,
                 child: OutlinedButton.icon(
                   onPressed: _isLoading ? null : _loginWithGoogle,
-                  icon: Image.network('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_\"G\"_logo.svg/1200px-Google_\"G\"_logo.svg.png', height: 24),
+                  icon: Image.network('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_"G"_logo.svg/1200px-Google_"G"_logo.svg.png', height: 24),
                   label: const Text("Sign up with Google", style: TextStyle(fontSize: 16, color: Colors.black, fontWeight: FontWeight.w500)),
                   style: OutlinedButton.styleFrom(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
-import 'main.dart';
-import 'profile_screen.dart';
-import 'login_screen.dart';
 import 'widgets/glass_app_bar.dart';
 import 'auth_service.dart';
 
@@ -140,7 +137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text("Notifications"),
             subtitle: const Text("Receive alerts when truck is nearby"),
             value: _notificationsEnabled,
-            activeColor: Colors.green,
+            activeThumbColor: Colors.green,
             onChanged: _handleNotificationToggle,
           ),
           const Divider(),
@@ -149,7 +146,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text("Location Access"),
             subtitle: const Text("Allow app to access your location"),
             value: _locationAccess,
-            activeColor: Colors.green,
+            activeThumbColor: Colors.green,
             onChanged: _handleLocationToggle,
           ),
           const Divider(),
@@ -205,24 +202,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showLogoutDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text("Log Out"),
         content: const Text("Are you sure you want to log out?"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text("Cancel"),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context); // Close the dialog
+              Navigator.pop(dialogContext); // Close the dialog
               
               await AuthService().signOut(); // Perform actual sign out
               
               // Pop all screens to return to the root (which will be LoginScreen via StreamBuilder)
-              if (mounted) {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-              }
+              if (!mounted) return;
+              Navigator.of(context).popUntil((route) => route.isFirst);
             },
             child: const Text("Log Out", style: TextStyle(color: Colors.red)),
           ),

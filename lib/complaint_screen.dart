@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -19,7 +18,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
   bool _isLoading = false;
   Position? _currentPosition;
   String? _currentAddress;
-  String _currentTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+  final String _currentTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
 
   @override
   void initState() {
@@ -30,7 +29,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
   Future<void> _fetchLocationAndAddress() async {
     try {
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
       
       if (mounted) {

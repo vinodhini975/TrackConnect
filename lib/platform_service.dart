@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 class PlatformService {
   static const MethodChannel _channel = MethodChannel('track_connect_channel');
@@ -10,7 +11,7 @@ class PlatformService {
       final String result = await _channel.invokeMethod('getBatteryLevel');
       return result;
     } on PlatformException catch (e) {
-      print("Failed to get battery level: '${e.message}'.");
+      debugPrint("Failed to get battery level: '${e.message}'.");
       return null;
     }
   }
@@ -22,7 +23,7 @@ class PlatformService {
           await _channel.invokeMethod('getDeviceInfo');
       return result;
     } on PlatformException catch (e) {
-      print("Failed to get device info: '${e.message}'.");
+      debugPrint("Failed to get device info: '${e.message}'.");
       return null;
     }
   }
@@ -33,7 +34,7 @@ class PlatformService {
       final bool result = await _channel.invokeMethod('isLocationEnabled');
       return result;
     } on PlatformException catch (e) {
-      print("Failed to check location: '${e.message}'.");
+      debugPrint("Failed to check location: '${e.message}'.");
       return false;
     }
   }
@@ -43,7 +44,7 @@ class PlatformService {
     try {
       await _channel.invokeMethod('openLocationSettings');
     } on PlatformException catch (e) {
-      print("Failed to open location settings: '${e.message}'.");
+      debugPrint("Failed to open location settings: '${e.message}'.");
     }
   }
 
@@ -54,7 +55,7 @@ class PlatformService {
           await _channel.invokeMethod('getAppInfo');
       return result;
     } on PlatformException catch (e) {
-      print("Failed to get app info: '${e.message}'.");
+      debugPrint("Failed to get app info: '${e.message}'.");
       return null;
     }
   }

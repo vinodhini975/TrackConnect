@@ -1,4 +1,3 @@
-import 'dart:html' as html;
 import 'package:geolocator/geolocator.dart';
 
 class WebLocation {

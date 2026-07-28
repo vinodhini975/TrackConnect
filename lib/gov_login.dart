@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dashboard_screen.dart';
+import 'screens/main_shell.dart';
 
 class GovLoginScreen extends StatefulWidget {
   const GovLoginScreen({super.key});
@@ -22,7 +22,7 @@ class _GovLoginScreenState extends State<GovLoginScreen> {
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => DashboardScreen()),
+        MaterialPageRoute(builder: (context) => const MainShell()),
       );
     }
   }

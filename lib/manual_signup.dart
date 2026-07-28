@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dashboard_screen.dart';
+import 'screens/main_shell.dart';
 
 class ManualSignupScreen extends StatefulWidget {
   const ManualSignupScreen({super.key});
@@ -30,7 +30,7 @@ class _ManualSignupScreenState extends State<ManualSignupScreen> {
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => DashboardScreen()),
+        MaterialPageRoute(builder: (context) => const MainShell()),
       );
     }
   }

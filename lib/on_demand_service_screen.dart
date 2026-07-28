@@ -102,7 +102,7 @@ class _OnDemandServiceScreenState extends State<OnDemandServiceScreen> {
               _buildFormSection(
                 title: 'Service Details',
                 child: DropdownButtonFormField<String>(
-                  value: _selectedService,
+                  initialValue: _selectedService,
                   decoration: InputDecoration(
                     labelText: 'Service Type',
                     filled: true,

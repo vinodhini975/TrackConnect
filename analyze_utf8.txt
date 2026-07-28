@@ -1,0 +1,101 @@
+﻿Analyzing TrackConnect...                                       
+
+   info - Don't invoke 'print' in production code - lib\android_service.dart:12:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:21:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:31:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:42:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:52:7 - avoid_print
+warning - Unused import: 'package:cloud_firestore/cloud_firestore.dart' - lib\complaint_screen.dart:2:8 - unused_import
+   info - The private field _currentTime could be 'final' - lib\complaint_screen.dart:22:10 - prefer_final_fields
+   info - 'desiredAccuracy' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings - lib\complaint_screen.dart:33:9 - deprecated_member_use
+   info - The import of 'dart:ui' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\dashboard_screen.dart:2:8 - unnecessary_import
+   info - The import of 'package:flutter/services.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\dashboard_screen.dart:4:8 - unnecessary_import
+warning - Unused import: 'package:cloud_firestore/cloud_firestore.dart' - lib\dashboard_screen.dart:7:8 - unused_import
+   info - Constructors for public widgets should have a named 'key' parameter - lib\dashboard_screen.dart:19:7 - use_key_in_widget_constructors
+   info - Invalid use of a private type in a public API - lib\dashboard_screen.dart:21:3 - library_private_types_in_public_api
+warning - The value of the field '_authService' isn't used - lib\dashboard_screen.dart:27:21 - unused_field
+   info - 'desiredAccuracy' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings - lib\dashboard_screen.dart:51:9 - deprecated_member_use
+   info - 'timeLimit' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings - lib\dashboard_screen.dart:52:9 - deprecated_member_use
+   info - 'desiredAccuracy' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings - lib\dashboard_screen.dart:98:9 - deprecated_member_use
+   info - 'timeLimit' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings - lib\dashboard_screen.dart:99:9 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\dashboard_screen.dart:276:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\dashboard_screen.dart:294:43 - deprecated_member_use
+warning - Unused import: 'platform_service.dart' - lib\gps_location.dart:6:8 - unused_import
+   info - Constructors for public widgets should have a named 'key' parameter - lib\gps_location.dart:8:7 - use_key_in_widget_constructors
+   info - Invalid use of a private type in a public API - lib\gps_location.dart:10:3 - library_private_types_in_public_api
+   info - The private field _geofenceRadius could be 'final' - lib\gps_location.dart:16:10 - prefer_final_fields
+   info - The private field _polylines could be 'final' - lib\gps_location.dart:20:17 - prefer_final_fields
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:60:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:68:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:74:7 - avoid_print
+   info - 'desiredAccuracy' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings - lib\gps_location.dart:81:9 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:105:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:112:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:116:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:117:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:135:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:153:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:156:7 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\gps_location.dart:217:40 - deprecated_member_use
+   info - The 'child' argument should be last in widget constructor invocations - lib\gps_location.dart:236:19 - sort_child_properties_last
+   info - The 'child' argument should be last in widget constructor invocations - lib\gps_location.dart:248:19 - sort_child_properties_last
+   info - Constructors for public widgets should have a named 'key' parameter - lib\home_page.dart:5:7 - use_key_in_widget_constructors
+   info - Don't use 'BuildContext's across async gaps - lib\home_page.dart:14:22 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\home_page.dart:25:22 - use_build_context_synchronously
+   info - 'desiredAccuracy' is deprecated and shouldn't be used. use settings parameter with AndroidSettings, AppleSettings, WebSettings, or LocationSettings - lib\home_page.dart:31:9 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps - lib\home_page.dart:35:9 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\home_page.dart:41:18 - use_build_context_synchronously
+   info - Use a 'SizedBox' to add whitespace to a layout - lib\home_page.dart:107:17 - sized_box_for_whitespace
+   info - Use a 'SizedBox' to add whitespace to a layout - lib\home_page.dart:137:17 - sized_box_for_whitespace
+warning - Unused import: 'dashboard_screen.dart' - lib\login_screen.dart:4:8 - unused_import
+   info - Unnecessary escape in string literal - lib\login_screen.dart:196:105 - unnecessary_string_escapes
+   info - Unnecessary escape in string literal - lib\login_screen.dart:196:108 - unnecessary_string_escapes
+   info - Unnecessary escape in string literal - lib\login_screen.dart:196:134 - unnecessary_string_escapes
+   info - Unnecessary escape in string literal - lib\login_screen.dart:196:137 - unnecessary_string_escapes
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:88:49 - deprecated_member_use
+   info - Empty catch block - lib\map_screen.dart:101:19 - empty_catches
+   info - Empty catch block - lib\map_screen.dart:158:19 - empty_catches
+warning - The '!' will have no effect because the receiver can't be null - lib\map_screen.dart:161:39 - unnecessary_non_null_assertion
+warning - The '!' will have no effect because the receiver can't be null - lib\map_screen.dart:161:92 - unnecessary_non_null_assertion
+warning - The '!' will have no effect because the receiver can't be null - lib\map_screen.dart:162:39 - unnecessary_non_null_assertion
+warning - The '!' will have no effect because the receiver can't be null - lib\map_screen.dart:162:93 - unnecessary_non_null_assertion
+warning - The '!' will have no effect because the receiver can't be null - lib\map_screen.dart:170:90 - unnecessary_non_null_assertion
+   info - Empty catch block - lib\map_screen.dart:188:17 - empty_catches
+   info - Statements in a for should be enclosed in a block - lib\map_screen.dart:205:37 - curly_braces_in_flow_control_structures
+   info - Empty catch block - lib\map_screen.dart:222:17 - empty_catches
+   info - 'setMapStyle' is deprecated and shouldn't be used. Use GoogleMap.style instead - lib\map_screen.dart:361:17 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\notification_screen.dart:103:59 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\on_demand_service_screen.dart:105:19 - deprecated_member_use
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:13:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:25:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:36:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:46:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:57:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\profile_screen.dart:80:30 - use_build_context_synchronously
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\profile_screen.dart:180:7 - deprecated_member_use
+warning - Unused import: 'package:url_launcher/url_launcher.dart' - lib\schedule_screen.dart:2:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\sell_waste_screen.dart:71:55 - deprecated_member_use
+warning - Unused import: 'main.dart' - lib\settings_screen.dart:4:8 - unused_import
+warning - Unused import: 'login_screen.dart' - lib\settings_screen.dart:6:8 - unused_import
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\settings_screen.dart:143:13 - deprecated_member_use
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\settings_screen.dart:152:13 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\settings_screen.dart:224:30 - use_build_context_synchronously
+warning - Unused import: 'dashboard_screen.dart' - lib\signup_screen.dart:4:8 - unused_import
+   info - Unnecessary escape in string literal - lib\signup_screen.dart:258:105 - unnecessary_string_escapes
+   info - Unnecessary escape in string literal - lib\signup_screen.dart:258:108 - unnecessary_string_escapes
+   info - Unnecessary escape in string literal - lib\signup_screen.dart:258:134 - unnecessary_string_escapes
+   info - Unnecessary escape in string literal - lib\signup_screen.dart:258:137 - unnecessary_string_escapes
+   info - The 'child' argument should be last in widget constructor invocations - lib\user_login.dart:131:17 - sort_child_properties_last
+   info - 'dart:html' is deprecated and shouldn't be used. Use package:web and dart:js_interop instead - lib\web_location.dart:1:1 - deprecated_member_use
+   info - Don't use web-only libraries outside Flutter web plugins - lib\web_location.dart:1:1 - avoid_web_libraries_in_flutter
+warning - Unused import: 'dart:html' - lib\web_location.dart:1:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\glass_app_bar.dart:30:31 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\live_tracking_banner.dart:26:44 - deprecated_member_use
+warning - Unused import: '../notification_service.dart' - lib\widgets\truck_eta_widget.dart:6:8 - unused_import
+   info - Empty catch block - lib\widgets\truck_eta_widget.dart:49:19 - empty_catches
+   info - Empty catch block - lib\widgets\truck_eta_widget.dart:70:17 - empty_catches
+   info - Empty catch block - lib\widgets\truck_eta_widget.dart:78:17 - empty_catches
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\truck_eta_widget.dart:179:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\truck_eta_widget.dart:180:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\widgets\truck_eta_widget.dart:187:55 - deprecated_member_use
+

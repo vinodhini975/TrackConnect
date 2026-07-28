@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dashboard_screen.dart';
+   import 'screens/main_shell.dart';
 import 'manual_signup.dart';
 
 class UserLoginScreen extends StatefulWidget {
@@ -23,7 +23,7 @@ class _UserLoginScreenState extends State<UserLoginScreen> {
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => DashboardScreen()),
+        MaterialPageRoute(builder: (context) => const MainShell()),
       );
     }
   }
@@ -128,12 +128,12 @@ class _UserLoginScreenState extends State<UserLoginScreen> {
               height: 50,
               child: ElevatedButton(
                 onPressed: _manualSignUp,
-                child: const Text("Manual Sign-up"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueGrey[700],
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
+                child: const Text("Manual Sign-up"),
               ),
             ),
           ],

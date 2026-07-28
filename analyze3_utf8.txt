@@ -1,0 +1,29 @@
+﻿Analyzing TrackConnect...                                       
+
+   info - Don't invoke 'print' in production code - fix_lint.dart:42:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:12:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:21:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:31:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:42:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\android_service.dart:52:7 - avoid_print
+   info - Invalid use of a private type in a public API - lib\dashboard_screen.dart:20:3 - library_private_types_in_public_api
+warning - The value of the field '_authService' isn't used - lib\dashboard_screen.dart:26:21 - unused_field
+   info - Unnecessary 'const' keyword - lib\dashboard_screen.dart:50:93 - unnecessary_const
+   info - Unnecessary 'const' keyword - lib\dashboard_screen.dart:96:94 - unnecessary_const
+   info - Invalid use of a private type in a public API - lib\gps_location.dart:11:3 - library_private_types_in_public_api
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:61:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:69:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:75:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:106:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:113:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:117:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:118:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:136:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:154:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\gps_location.dart:157:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:13:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:25:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:36:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:46:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\platform_service.dart:57:7 - avoid_print
+
